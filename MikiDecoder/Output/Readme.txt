@@ -1,0 +1,1 @@
+Folder for found passwords (False and True Positive)

@@ -1,0 +1,28 @@
+# Characters in password
+Characters=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxzy0123456789
+# Password Min length
+PassMinLength=32
+# Password Max length
+PassMaxLength=32
+# Increment base
+IncrementBase=3
+# Increment power 108
+IncrementPower=108
+# 0 - Password, 1 - Iteration, 2 - Number (Password -> Number)
+Mode=1
+# 7z parameters
+ZipParam=t
+# 7z Processes count
+ProcCount=30
+# Hascat parameters
+HCParam=-m 11600 -w 4 --potfile-disable -a 0
+# JohnTheRipper parameters
+JTRParam=--format=7z
+# HC Dictionary size
+HCDictSize=100000
+# JTR Dictionary size 6048
+JTRDictSize=4000
+# Test mode with password checking 1 = true, 0 = false
+PassCheck=1
+# Test mode display speed after n loops
+PassLoops=1000
