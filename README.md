@@ -1,5 +1,6 @@
 # MikiDecoder
 Miki Calculator and Pseudo-Random Password Generator for decoding 7z (Qlocker)...
+For Windows and Linux...
 
 Please, read Readme.txt in each folder.
 
