@@ -9,18 +9,54 @@ SessionProgress.txt contains two lines
 Confit.txt
 Params you can set for MikiDecoder and 7z, Hashcat, JohnTheRipper.
 You can configure password generator with this parameters:
+#################### PASSSWORD CONFIGURATION ####################
 # Characters in password
 Characters=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxzy0123456789
 # Password Min length
 PassMinLength=32
 # Password Max length
 PassMaxLength=32
+########## MASK CONFIGRATION ##########
+# Use Mask 0 - No, 1 - Yes
+UseMask=0
+# Mask config, from back ...?9?8?7?6?5?4?3?2?1, ie: ?1=abcd, ?2=12345, ?####=????????..... each mask in new line
+# If no mask, all characters in Password configuration will be used
+?1=0
+?32=a
+#################### GENERATOR CONFIGURATION ####################
 # Increment base
 IncrementBase=3
 # Increment power 108
 IncrementPower=108
 # 0 - Password, 1 - Iteration, 2 - Number (Password -> Number)
 Mode=1
+# Counter display 1 = true, 0 = false (percent while generating pass list, allways dislpay 100%)
+CounterDisplay=0
+#################### CONFIGURATION 7z ####################
+# 7z parameters
+ZipParam=t
+# 7z Processes count
+ProcCount=50
+# 7z Dictionary size
+7zDictSize=1000
+# 7z Speed calculate loop count
+Speed7zLoop=100
+#################### CONFIGURATION HASHCAT ####################
+# Hascat parameters
+HCParam=-m 11600 -w 4 --potfile-disable -a 0
+# HC Dictionary size
+HCDictSize=1000
+#################### CONFIGURATION JOHN THE RIPPER ####################
+# JohnTheRipper parameters
+JTRParam=--format=7z
+# JTR Dictionary size 6048
+JTRDictSize=1000
+#################### CONFIGURATON TEST MODE ####################
+# Test mode with password checking 1 = true, 0 = false
+PassCheck=1
+# Test mode display speed after n loops
+PassLoops=100000
+
 
 The working principle of the decoder is to convert a decimal number to a password, similar to converting a decimal number to hexadecimal, so:
 0  is 0, and/or 00, and/or 000 a.s.o (depends on PassMinLength and PassMaxLength)
