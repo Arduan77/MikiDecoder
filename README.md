@@ -12,8 +12,11 @@ The working principle of the decoder is to convert a decimal number to a passwor
 (Decoder can work on very big string-integer-like numbers, you can test it in Calculator mode.)
 
 How it works:
-Hashcat and JohnTheRipper mode - dictionary attack (folder Dictionary), when HC / JTR do their job, new Dictionary is generated...
-7z mode - multitasking 7z job
+For HC, JTR and 7z program creates dictionaries, and saves them to the file.
+Always there are two dictionaries, Dictionary.txt and DictionaryNext.txt, the second is created while the first is in the process of checking, 
+so checking is a continuous process without waiting for a new dictionary.
+
+7z mode - multitasking 7z job, you can set in Config.txt or during decoding with +,-,*,/ keys how many 7z processes MikiDecoder will launch.
 
 This pseudo-random generator uses Lehmer algorithm: NextDig = (LastDig + Increment) % TotalIterCount
 but also:
