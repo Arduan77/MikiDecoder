@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.IO;
@@ -6,15 +6,17 @@ using System.Text;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
-//using System.Linq;
-//using System.Collections.Generic;
-//using SevenZip;
+using LehmerGen;
+using System.ComponentModel;
+using System.Collections.Immutable;
+using System.Collections.Specialized;
+using System.IO.Compression;
+using Miki;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 
-
-
-//dotnet publish -r win-x64 -c Release /p:PublishSingleFile=true
 //format code ctrl-k + ctrl-f
-//<PublishTrimmed>true</PublishTrimmed>
+//.NET 8.0
 
 namespace RandomPassword
 {
@@ -28,46 +30,57 @@ namespace RandomPassword
         public static int FalsePosCount = 0;
 
         public static int DisplayMode = 0;
-        public static int ActThreadCount = 0;
-        public static int PublicMyTaskCount = 0;
+        public static int ActTaskCount = 0;
         public static int GlobalTaskCount = 0;
         public static int SetupTaskCount = 0;
-        public static int PassCount = 0;
+
         public static string SessionPassCountDoneS = "0";
 
         private static AsyncLocal<string> ExtrMyPass = new AsyncLocal<string>();
+        private static AsyncLocal<ProcessStartInfo> Process7z = new AsyncLocal<ProcessStartInfo>();
+        private static AsyncLocal<string> SesPassCountGenSAsync = new AsyncLocal<string>();
 
-        public static long MySpeed = 0;
-        public static long MySpeedTemp = 0;
+        public static long MySpeedMin = 0;
+        public static long MySpeedTempMin = 0;
+        public static long MySpeedSec = 0;
+        public static long MySpeedTempSec = 0;
 
         public static DateTime StartTime = DateTime.Now;
         public static DateTime EndTime = DateTime.Now;
+        public static Stopwatch Stopwatch7zLap;
+        public static Stopwatch Stopwatch7zFull;
+        public static int LapCount7z;
+        public static int Speed7zLoop;
 
         public static string MyExit = "n";
         public static string CurrentOS = "";
         public static string ProgramDir = "";
         public static string Add7z = "";
-        public static Stopwatch sw7zTemp = Stopwatch.StartNew();
-        public static double ElapsSec7z = 0;
-        public static string Session7zPassCount = "0";
+        public static Stopwatch StopwatchJob;
+        public static double ElapsNsJob = 0;
+        public static string DictExitReason = "";
+
         public static string HashcatParam = "";
         public static string JTRParam = "";
         public static string ZipParam = "";
-
-        public static int TempPassCountPublic = 0; //Czasowa liczba haseł, które przeszły weryfikację
-
+        public static int Task7zInProgress = 0;
+        public static int Task7zWaiting = 0;
+        public static List<string> PassRunList = new();
+        public static object locking_object = new object();
         static void Main(string[] args)
         {
+            //Testowe.TestVariables();
+
             Console.WriteLine("Miki Calculator and Pseudo-Random Password Generator for decoding 7z (Qlocker)...");
             Console.WriteLine("");
 
             while (true)
             {
                 Console.WriteLine("");
-                Console.WriteLine("1.RndTo7z,   2.RndToHashcat,    3.RndToJTR,    9.Calculator,    0.Test Generator");
+                Console.WriteLine("1.RndTo7z,   2.RndToHashcat,    3.RndToJTR,    8.Calculator,    9.Calculator Radom,    0.Test Generator");
                 DecoderMode = Convert.ToInt32(Console.ReadKey().KeyChar.ToString());
 
-                if (DecoderMode != 0 & DecoderMode != 1 & DecoderMode != 2 & DecoderMode != 3 & DecoderMode != 9)
+                if (DecoderMode != 0 & DecoderMode != 1 & DecoderMode != 2 & DecoderMode != 3 & DecoderMode != 8 & DecoderMode != 9)
                 {
                     Console.WriteLine("");
                     Console.WriteLine("Wrong option, try again...");
@@ -75,105 +88,34 @@ namespace RandomPassword
                 else { Console.WriteLine(""); break; }
             }
 
-            if (DecoderMode == 9)
+            if (DecoderMode == 8)
             {
                 Console.WriteLine("Calculator");
                 Miki.Miki.Calculator();
                 System.Environment.Exit(0);
 
             }
+            if (DecoderMode == 9)
+            {
+                Console.WriteLine("Calculator Random Test");
+                Miki.Miki.TestRandom();
+                System.Environment.Exit(0);
+            }
+
 
             ProgramDir = Environment.CurrentDirectory;
-
-
-
-            string ReadString;
-            List<string> ConfigStringList = new List<string>();
-            string ConfigFile = System.IO.Path.Combine(ProgramDir, "Config", "Config.txt");
-
-            using (System.IO.StreamReader Cfile = new System.IO.StreamReader(ConfigFile))
-            {
-                while ((ReadString = Cfile.ReadLine()) != null)
-                {
-                    if (ReadString.Contains("Characters="))
-                    {
-                        string TempString = ReadString.Replace("Characters=", "").Trim();
-                        //char[] characters = TempString.ToArray();
-                        char[] characters = TempString.ToCharArray();
-                        Array.Sort(characters);
-                        LehmerGen.Passwords.CharactersList = new List<char>(characters);
-                        LehmerGen.Passwords.PassCharCount = Convert.ToString(LehmerGen.Passwords.CharactersList.Count);
-                    }
-                    if (ReadString.Contains("PassMinLength="))
-                    {
-                        LehmerGen.Passwords.PassMinLength = Convert.ToInt32(ReadString.Replace("PassMinLength=", "").Trim());
-                    }
-                    if (ReadString.Contains("PassMaxLength="))
-                    {
-                        LehmerGen.Passwords.PassMaxLength = Convert.ToInt32(ReadString.Replace("PassMaxLength=", "").Trim());
-                    }
-                    if (ReadString.Contains("IncrementBase="))
-                    {
-                        LehmerGen.Passwords.IncrementBase = ReadString.Replace("IncrementBase=", "").Trim();
-                    }
-                    if (ReadString.Contains("IncrementPower="))
-                    {
-                        LehmerGen.Passwords.IncrementPower = ReadString.Replace("IncrementPower=", "").Trim();
-                    }
-                    if (ReadString.Contains("Mode="))
-                    {
-                        LehmerGen.Passwords.WhatIs = Convert.ToInt32(ReadString.Replace("Mode=", "").Trim());
-                    }
-                    if (ReadString.Contains("ZipParam="))
-                    {
-                        ZipParam = ReadString.Replace("ZipParam=", "").Trim();
-                    }
-                    if (ReadString.Contains("ProcCount="))
-                    {
-                        RandomPassword.SetupTaskCount = Convert.ToInt32(ReadString.Replace("ProcCount=", "").Trim());
-                        RandomPassword.GlobalTaskCount = RandomPassword.SetupTaskCount;
-
-                    }
-                    if (ReadString.Contains("HCParam="))
-                    {
-                        HashcatParam = ReadString.Replace("HCParam=", "").Trim();
-                    }
-                    if (ReadString.Contains("JTRParam="))
-                    {
-                        JTRParam = ReadString.Replace("JTRParam=", "").Trim();
-                    }
-                    if (ReadString.Contains("HCDictSize="))
-                    {
-                        LehmerGen.Passwords.HCDictSize = Convert.ToUInt32(ReadString.Replace("HCDictSize=", "").Trim());
-                    }
-                    if (ReadString.Contains("JTRDictSize="))
-                    {
-                        LehmerGen.Passwords.JTRDictSize = Convert.ToUInt32(ReadString.Replace("JTRDictSize=", "").Trim());
-                    }
-                    if (ReadString.Contains("PassCheck="))
-                    {
-                        LehmerGen.Passwords.TestPassCheck = Convert.ToInt32(ReadString.Replace("PassCheck=", "").Trim());
-                    }
-                    if (ReadString.Contains("PassLoops="))
-                    {
-                        LehmerGen.Passwords.TestPassLoops = Convert.ToInt32(ReadString.Replace("PassLoops=", "").Trim());
-                    }
-                }
-
-                Cfile.Dispose();
-                Cfile.Close();
-            }
-            //LehmerGen.Passwords.WhatIs = ConfigStringList[0];
+            ReadConfig();
 
             string ProgressFile = System.IO.Path.Combine(ProgramDir, "Config", "SessionProgress.txt");
 
-            List<string> ProgressStringList = new List<string>();
+            List<string> ProgressStringList = new();
 
 
             using (System.IO.StreamReader Pfile = new System.IO.StreamReader(ProgressFile))
             {
+                string ReadString;
                 while ((ReadString = Pfile.ReadLine()) != null)
-                { ProgressStringList.Add(ReadString); }
+                { ProgressStringList.Add(CalcStringExt.DeSplitString(ReadString)); }
                 Pfile.Dispose();
                 Pfile.Close();
             }
@@ -183,16 +125,11 @@ namespace RandomPassword
             LehmerGen.Passwords.PassIterPoolMaxFix = ProgressStringList[1];
 
 
-            LehmerGen.Passwords.InitializeGenerator(); //Prepare generator "62", "32", "3", "108"
+            LehmerGen.Passwords.InitializeGenerator();
             LehmerGen.Passwords.PrepareGeneratorNext(true);
 
             Console.WriteLine("Session restored...");
-            Console.WriteLine(String.Format("Iteration to do:   {0}", LehmerGen.Passwords.IterToDo));
-
-            //LehmerGen.Passwords.MyPerformanceCheck();
-            //RandomPassword.CurrentOS = CheckOS();
-
-
+            Console.WriteLine(String.Format("Iteration to do:   {0}", CalcStringExt.SplitString(LehmerGen.Passwords.IterToDo)));
 
             Console.WriteLine("");
             Console.WriteLine("Now You can set:");
@@ -206,8 +143,6 @@ namespace RandomPassword
 
             if (UseConfig == "y")
             {
-                //RandomPassword.GlobalTaskCount = Convert.ToInt32(Console.ReadLine());
-                //MaxLoop = Convert.ToUInt32(Console.ReadLine());
                 if (DecoderMode == 1)
                 {
                     Task.Run(() => PutRandomPassTo7z(RandomPassword.GlobalTaskCount)).ConfigureAwait(false);
@@ -243,7 +178,7 @@ namespace RandomPassword
                 {
                     Console.WriteLine();
                     Console.WriteLine("How much passwords in Dictionary file???");
-                    LehmerGen.Passwords.HCDictSize = Convert.ToUInt32(Console.ReadLine());
+                    LehmerGen.Passwords.HCDictSize = Convert.ToInt32(CalcStringExt.DeSplitString(Console.ReadLine()));
                     Console.WriteLine();
                     Task.Run(() => RunHashcatProgram()).ConfigureAwait(false);
                 }
@@ -252,7 +187,7 @@ namespace RandomPassword
                 {
                     Console.WriteLine();
                     Console.WriteLine("How much passwords in Dictionary file???");
-                    LehmerGen.Passwords.HCDictSize = Convert.ToUInt32(Console.ReadLine());
+                    LehmerGen.Passwords.HCDictSize = Convert.ToInt32(CalcStringExt.DeSplitString(Console.ReadLine()));
                     Console.WriteLine();
                     Task.Run(() => RunJTRProgram()).ConfigureAwait(false);
                 }
@@ -264,7 +199,7 @@ namespace RandomPassword
                     if (TestOpt == "y") { LehmerGen.Passwords.TestPassCheck = 1; } else { LehmerGen.Passwords.TestPassCheck = 0; }
                     Console.WriteLine();
                     Console.WriteLine("Loops count for display result:  ");
-                    LehmerGen.Passwords.TestPassLoops = Convert.ToInt32(Console.ReadLine());
+                    LehmerGen.Passwords.TestPassLoops = Convert.ToInt32(CalcStringExt.DeSplitString(CalcStringExt.DeSplitString(Console.ReadLine())));
                     LehmerGen.Passwords.TestGenerator(LehmerGen.Passwords.TestPassCheck, LehmerGen.Passwords.TestPassLoops);
                 }
             }
@@ -277,7 +212,122 @@ namespace RandomPassword
             }
 
         }
+        public static void ReadConfig()
+        {
+            string ReadString;
+            List<string> ConfigStringList = new();
+            string ConfigFile = System.IO.Path.Combine(ProgramDir, "Config", "Config.txt");
 
+            using (System.IO.StreamReader Cfile = new System.IO.StreamReader(ConfigFile))
+            {
+                while ((ReadString = Cfile.ReadLine()) != null)
+                {
+                    if (ReadString[..1] != "#")
+                    {
+                        if (ReadString.Contains("Characters="))
+                        {
+                            string TempString = ReadString.Replace("Characters=", "").Trim();
+                            char[] characters = TempString.ToCharArray();
+                            Array.Sort(characters);
+                            LehmerGen.Passwords.CharactersList = new List<char>(characters);
+                            LehmerGen.Passwords.PassCharCount = Convert.ToString(LehmerGen.Passwords.CharactersList.Count);
+                        }
+                        if (ReadString.Contains("PassMinLength="))
+                        {
+                            LehmerGen.Passwords.PassMinLength = Convert.ToInt32(ReadString.Replace("PassMinLength=", "").Trim());
+                        }
+                        if (ReadString.Contains("PassMaxLength="))
+                        {
+                            LehmerGen.Passwords.PassMaxLength = Convert.ToInt32(ReadString.Replace("PassMaxLength=", "").Trim());
+                        }
+                        if (ReadString.Contains("IncrementBase="))
+                        {
+                            LehmerGen.Passwords.IncrementBase = ReadString.Replace("IncrementBase=", "").Trim();
+                        }
+                        if (ReadString.Contains("IncrementPower="))
+                        {
+                            LehmerGen.Passwords.IncrementPower = ReadString.Replace("IncrementPower=", "").Trim();
+                        }
+                        if (ReadString.Contains("Mode="))
+                        {
+                            LehmerGen.Passwords.WhatIs = Convert.ToInt32(ReadString.Replace("Mode=", "").Trim());
+                        }
+                        if (ReadString.Contains("CounterDisplay="))
+                        {
+                            LehmerGen.Passwords.CounterDisplay = Convert.ToInt32(ReadString.Replace("CounterDisplay=", "").Trim());
+                        }
+
+                        if (ReadString.Contains("ZipParam="))
+                        {
+                            ZipParam = ReadString.Replace("ZipParam=", "").Trim();
+                        }
+                        if (ReadString.Contains("Speed7zLoop="))
+                        {
+                            Speed7zLoop = Convert.ToInt32(ReadString.Replace("Speed7zLoop=", "").Trim());
+                        }
+                        if (ReadString.Contains("ProcCount="))
+                        {
+                            RandomPassword.SetupTaskCount = Convert.ToInt32(ReadString.Replace("ProcCount=", "").Trim());
+                            RandomPassword.GlobalTaskCount = RandomPassword.SetupTaskCount;
+
+                        }
+                        if (ReadString.Contains("7zDictSize="))
+                        {
+                            LehmerGen.Passwords.ZipDictSize = Convert.ToInt32(ReadString.Replace("7zDictSize=", "").Trim());
+                        }
+
+                        if (ReadString.Contains("HCParam="))
+                        {
+                            HashcatParam = ReadString.Replace("HCParam=", "").Trim();
+                        }
+                        if (ReadString.Contains("JTRParam="))
+                        {
+                            JTRParam = ReadString.Replace("JTRParam=", "").Trim();
+                        }
+                        if (ReadString.Contains("HCDictSize="))
+                        {
+                            LehmerGen.Passwords.HCDictSize = Convert.ToInt32(ReadString.Replace("HCDictSize=", "").Trim());
+                        }
+                        if (ReadString.Contains("JTRDictSize="))
+                        {
+                            LehmerGen.Passwords.JTRDictSize = Convert.ToInt32(ReadString.Replace("JTRDictSize=", "").Trim());
+                        }
+                        if (ReadString.Contains("PassCheck="))
+                        {
+                            LehmerGen.Passwords.TestPassCheck = Convert.ToInt32(ReadString.Replace("PassCheck=", "").Trim());
+                        }
+                        if (ReadString.Contains("PassLoops="))
+                        {
+                            LehmerGen.Passwords.TestPassLoops = Convert.ToInt32(ReadString.Replace("PassLoops=", "").Trim());
+                        }
+                        if (ReadString.Contains("UseMask="))
+                        {
+                            LehmerGen.Passwords.UseMask = Convert.ToInt32(ReadString.Replace("UseMask=", "").Trim());
+                            if (LehmerGen.Passwords.UseMask == 1)
+                            {
+                                for (int c = 0; c < LehmerGen.Passwords.PassMaxLength; c++)
+                                { LehmerGen.Passwords.MaskTable.Add(LehmerGen.Passwords.CharactersList); }
+                            }
+                        }
+                        if (LehmerGen.Passwords.UseMask == 1)
+                        {
+                            if (ReadString[..1] == "?")
+                            {
+                                int IndexOfEq = ReadString.IndexOf('=');
+                                int MaskNumber = Convert.ToInt32(ReadString[1..IndexOfEq].Trim());
+                                char[] ThisMask = ReadString[(ReadString.IndexOf('=') + 1)..].ToArray();
+                                Array.Sort(ThisMask);
+                                LehmerGen.Passwords.MaskTable[MaskNumber - 1] = ThisMask.ToList();
+
+                            }
+                        }
+                    }
+                }
+                Cfile.Dispose();
+                Cfile.Close();
+            }
+            Console.WriteLine("Config loaded...");
+        }
         public static int MonitorKeypress()
         {
             string InfoString1 = "1. Visual Mode, 2. Show status, 3. Silent Mode";
@@ -287,7 +337,7 @@ namespace RandomPassword
             string InfoString5 = "End program if cracked...";
             string InfoString = "";
             if (DecoderMode == 1 || Add7z == "y") { InfoString2 = "+. 7z Task++, -. 7z Task--, /. Task=2, *. Task=From Config"; }
-            InfoString3 = "n. End if cracked, e. Safe End, Ctrl+p. Refresh KeyPress monitor";
+            InfoString3 = "n. End if cracked, e. Safe End, Ctrl+s. Reload Config";
             if (DecoderMode == 1 || Add7z == "y") { InfoString4 = string.Format("Number of active tasks is set to: {0}", RandomPassword.GlobalTaskCount); }
 
             InfoString = string.Format("{0}{1}{2}{3}{4}{5}{6}{7}{8}", InfoString1, Environment.NewLine, InfoString2, Environment.NewLine, InfoString3, Environment.NewLine, InfoString4, Environment.NewLine, InfoString5);
@@ -300,14 +350,15 @@ namespace RandomPassword
             while (true)
             {
                 // true hides the pressed character from the console
-                ConsoleKeyInfo cki = new ConsoleKeyInfo();
+                ConsoleKeyInfo cki;
                 bool DisplayInfo = false;
-                //Console.WriteLine(Console.KeyAvailable);
+
                 cki = Console.ReadKey(true);
                 if ((cki.Modifiers & ConsoleModifiers.Control) != 0)
                 {
-                    if ((cki.Key & ConsoleKey.P) != 0)
+                    if ((cki.Key & ConsoleKey.S) != 0)
                     {
+                        ReadConfig();
                         break;
                     }
                 }
@@ -322,7 +373,6 @@ namespace RandomPassword
                         break;
                     case '2':
                         DisplayMode = 2;
-                        //CpuCounter();
                         DisplayInfo = true;
                         break;
                     case '3':
@@ -366,7 +416,6 @@ namespace RandomPassword
                             Thread.Sleep(1000);
                             if (Console.KeyAvailable)
                             {
-                                //while(Console.KeyAvailable == true) { Console.WriteLine("REM"); }
                                 KeyPressed = true;
                                 break;
                             }
@@ -381,9 +430,7 @@ namespace RandomPassword
                         else
                         {
                             Console.WriteLine("End waiting for key...");
-                            //Thread.Sleep(100);
                         }
-                        //cki = Console.ReadKey(true);
                         break;
 
                 }
@@ -411,15 +458,104 @@ namespace RandomPassword
             return 0;
         }
 
+        
+        public static async Task CheckForDictionary(int DictionarySize, string DictFile, string DictFileNext, string JobKind, string SesPassCountDoneS)
+        {
+            if (File.Exists(DictFile) && File.Exists(DictFileNext))
+            {
+                Console.WriteLine("Both dictionaries exists...");
+                DictExitReason = " - OK.";
+                return;
+            }
+
+            if (!File.Exists(DictFile) && !File.Exists(DictFileNext))
+            {
+                Console.WriteLine("Both dictionaries do not exist...");
+                Task<string> GenDict = GenerateDictionary(DictFile, "Dictionary.txt", DictionarySize, JobKind, SesPassCountDoneS);
+                Task.WaitAny(GenDict);
+                DictExitReason = GenDict.Result;
+                return;
+
+            }
+
+            if (!File.Exists(DictFile) && File.Exists(DictFileNext))
+            {
+                Console.WriteLine("No Dictionary.txt, rename DictionaryNext.txt to Dictionary.txt...");
+                System.IO.File.Move(DictFileNext, DictFile);
+                DictExitReason = " - OK.";
+                return;
+            }
+
+            if (File.Exists(DictFile) && !File.Exists(DictFileNext))
+            {
+                Console.WriteLine("No DictionaryNext.txt, Generating in progress...");
+                Task<string> GenDict = GenerateDictionary(DictFileNext, "DictionaryNext.txt", DictionarySize, JobKind, SesPassCountDoneS);
+                Task.WaitAny(GenDict);
+                DictExitReason = GenDict.Result;
+                return;
+            }
+            DictExitReason = " - OK.";
+            return;
+        }
+
+        public static async Task<string> GenerateDictionary(string DictFile, string DictionaryName, int DictionarySize, string JobKind, string SesPassCountDoneS)
+        {
+
+            Encoding isoLatin1Encoding = Encoding.GetEncoding("ISO-8859-1");
+
+            string IterAll = "";
+
+            Console.WriteLine("");
+            Console.WriteLine("New " + DictionaryName + " file is generated: " + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            List<string> PassList = LehmerGen.Passwords.PassListFromDigByTab(DictionarySize);
+            File.WriteAllLines(DictFile, PassList.ToArray(), isoLatin1Encoding);
+
+            PassList.Clear();
+
+            IterAll = Miki.CalcStrings.Add(LehmerGen.Passwords.IterDone, Convert.ToString(DictionarySize))[0];
+
+            Console.WriteLine("");
+            Console.WriteLine("New " + DictionaryName + " file is done:      " + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            Console.WriteLine("");
+            //int i = await CalculateSpeed().ConfigureAwait(true);
+            SaveProgress(IterAll, LehmerGen.Passwords.PassIterPoolMaxFix, JobKind);
+            string String1 = CalcStringExt.SplitString(LehmerGen.Passwords.PassIterPoolMaxFix);
+            int String1Len = String1.Length;
+            string String2 = CalcStringExt.SplitString(LehmerGen.Passwords.IterDone).PadLeft(String1Len);
+            string String3 = CalcStringExt.SplitString(LehmerGen.Passwords.IterToDo).PadLeft(String1Len);
+            string String4 = CalcStringExt.SplitString(IterAll).PadLeft(String1Len);
+            string String5 = CalcStringExt.SplitString(Convert.ToString(DictionarySize)).PadLeft(String1Len);
+            string String6 = CalcStringExt.SplitString(SesPassCountDoneS).PadLeft(String1Len);
+
+
+            //Console.WriteLine(DateTime.Now.ToString("HH:mm:ss") + "    " + JobKind + " Act/Full: " + MySpeedTemp + " / " + MySpeed + " /m    FalsePos: " + FalsePosCount);
+            Console.WriteLine("Max Pool iteration:       " + String1);
+            Console.WriteLine("Last iteration:           " + String2);
+            Console.WriteLine("New iteration:            " + String3);
+            Console.WriteLine("End / done iterations:    " + String4);
+            Console.WriteLine("Dictionary size:          " + String5);
+            Console.WriteLine("Session done iterations:  " + String6);
+            Console.WriteLine("");
+
+            LehmerGen.Passwords.IterDone = IterAll;
+            LehmerGen.Passwords.IterToDo = Miki.CalcStrings.Add(LehmerGen.Passwords.IterDone, "1")[0];
+
+            Miki.CalcCompare.StringBigger(in IterAll, in LehmerGen.Passwords.PassIterPoolMaxFix, out int StringBigger);
+            if (StringBigger < 2)
+            {
+                RandomPassword.MyExit = "ex";
+                return " - Exhausted Pool.";
+            }
+            return " - OK.";
+        }
+
         private static async Task PutRandomPassTo7z(int StartTaskCount)
         {
-            //StartTime = DateTime.Now;
-            Session7zPassCount = "0";
             string ActOS = CheckOS();
-
             string ZipFile = "";
-
-            List<Task> ListOfTasks7z = new List<Task>();
+            string DictFile = System.IO.Path.Combine(ProgramDir, "Dictionary", "Dictionary.txt");
+            string DictFileNext = System.IO.Path.Combine(ProgramDir, "Dictionary", "DictionaryNext.txt");
+            int l = 0;
 
             if (ActOS == "Windows")
             {
@@ -432,160 +568,86 @@ namespace RandomPassword
 
             string CodedFile = System.IO.Path.Combine(ProgramDir, "Coded", "Coded.7z");
 
-            //int TempPassCount = 0;
-            int TaskCount = RandomPassword.GlobalTaskCount;
+            MakeProcess7z(ZipFile);
+
+            int Task7zCount = RandomPassword.GlobalTaskCount;
 
             Console.WriteLine("Cracking with 7z started...");
 
-            //string IterAll;
-            //string IterToDo;
-            string SessionPassCountS = "0";
-            PassCount = 0;
+            SesPassCountGenSAsync.Value = "0";
 
+            string ExitReason1 = "Safe exit";
 
-            //List<string> ProgressStringList = ReadProgress();
+            await Task.Run(() => CheckForDictionary(LehmerGen.Passwords.ZipDictSize, DictFile, DictFileNext, "7z", SessionPassCountDoneS)).ConfigureAwait(true);
+            string ExitReason2 = DictExitReason;
+            List<string> TempDictList = new List<string>(File.ReadAllLines(DictFile));
 
-            //ProgressString is a real password number, eg. 1 is for 000000000...0, and it is last chcecked password
-            //but password 000000...0 cames from iteration 0, so if we want to check iteration 0, ProgressString should be -1
-            //var abv = LehmerGen.Passwords.IterToDo;
-            //LehmerGen.Passwords.IterDone = LehmerGen.Passwords.IterDone;
-            //LehmerGen.Passwords.IterDone = IterLastDone;
-
-            //string MaxPassPool = ProgressStringList[1];
-            //IterToDo = Miki.CalcStrings.Add(IterLastDone, "1")[0]; //as above, this is next password to check
-
-
-
-            //LehmerGen.Passwords.PrepareGeneratorNext(true); //Prepare generator
-
-            List<Task> ListOfTasks = new List<Task>();
-
-            string ExitReason = "Safe Exit";
-
-            var sw = Stopwatch.StartNew();
             StartTime = DateTime.Now;
-            sw7zTemp = Stopwatch.StartNew();
+            Stopwatch7zLap = Stopwatch.StartNew();
+            Stopwatch7zFull = Stopwatch.StartNew();
+            LapCount7z = 0;
+
             while (true)
             {
-                TaskCount = RandomPassword.GlobalTaskCount;
-                RandomPassword.PublicMyTaskCount = TaskCount;
-                //Console.WriteLine(ListOfTasks.);
+                
+                await Task.Delay(1);
+                Task7zCount = RandomPassword.GlobalTaskCount;
 
-                //now save TempPassCount as a number of last checked password, because each of generated pass will be checked
-                if (sw.ElapsedMilliseconds >= 300000)
+                if (RandomPassword.MyExit == "e")
                 {
-
-
-                    LehmerGen.Passwords.IterDone = Miki.CalcStrings.Add(LehmerGen.Passwords.IterDone, Convert.ToString(TempPassCountPublic))[0];
-                    //Session7zPassCount = Miki.CalcStrings.Add(Session7zPassCount, Convert.ToString(TempPassCount))[0];
-
-                    SaveProgress(LehmerGen.Passwords.IterDone, LehmerGen.Passwords.PassIterPoolMaxFix, "7z");
-
-
-                    if (Miki.CalcCompare.StringBigger(LehmerGen.Passwords.IterDone, LehmerGen.Passwords.PassIterPoolMaxFix) < 2)
+                    RandomPassword.GlobalTaskCount = 0;
+                    if (PassRunList.Count == 0)
                     {
-                        RandomPassword.MyExit = "ex";
-                        RandomPassword.GlobalTaskCount = 0;
-                        ExitReason += " - Exhausted Pool.";
-                    }
-
-
-                    //TempPassCount = 0;
-                    TempPassCountPublic = 0;
-                    sw = Stopwatch.StartNew();
-                }
-
-
-                //await Task.WhenAny(ListOfTasks);
-                //ListOfTasks.RemoveAll(x => x.IsCompleted);
-
-                RandomPassword.ActThreadCount = ListOfTasks.Count;
-
-                while (RandomPassword.ActThreadCount >= TaskCount)
-                {
-                    //await Task.Delay(25);
-                    await Task.WhenAny(ListOfTasks);
-                    ListOfTasks.RemoveAll(x => x.IsCompleted);
-
-                    RandomPassword.ActThreadCount = ListOfTasks.Count;
-
-                    if (RandomPassword.MyExit == "eh") //end Hascat
-                    {
-                        int TempTaskCount = RandomPassword.GlobalTaskCount;
-                        RandomPassword.GlobalTaskCount = 0;
-                        await Task.WhenAll(ListOfTasks);
-                        ListOfTasks.RemoveAll(x => x.IsCompleted);
-                        RandomPassword.ActThreadCount = ListOfTasks.Count;
-
-                        ExitReason += " - Stoped, prepare new password list and run new Hashcat.";
-
-                        Console.WriteLine("Stoped Additional 7z cracking...");
-                        if (ListOfTasks.Count == 0)
-                        {
-                            LehmerGen.Passwords.IterDone = Miki.CalcStrings.Add(LehmerGen.Passwords.IterDone, Convert.ToString(TempPassCountPublic))[0];
-                            //Session7zPassCount = Miki.CalcStrings.Add(Session7zPassCount, Convert.ToString(TempPassCount))[0];
-                            SaveProgress(LehmerGen.Passwords.IterDone, LehmerGen.Passwords.PassIterPoolMaxFix, "7z");
-
-                            Console.WriteLine(ExitReason);
-                            PassCount = TempPassCountPublic;
-                            RandomPassword.GlobalTaskCount = TempTaskCount;
-                            return;
-                        }
-                    }
-
-
-                    if (RandomPassword.MyExit == "e")
-                    {
-                        RandomPassword.GlobalTaskCount = 0;
-                        await Task.WhenAll(ListOfTasks);
-                        ListOfTasks.RemoveAll(x => x.IsCompleted);
-                        if (ListOfTasks.Count == 0)
-                        {
-                            LehmerGen.Passwords.IterDone = Miki.CalcStrings.Add(LehmerGen.Passwords.IterDone, Convert.ToString(TempPassCountPublic))[0];
-                            //Session7zPassCount = Miki.CalcStrings.Add(Session7zPassCount, Convert.ToString(TempPassCount))[0];
-                            SaveProgress(LehmerGen.Passwords.IterDone, LehmerGen.Passwords.PassIterPoolMaxFix, "7z");
-
-                            Console.WriteLine(ExitReason);
-                            return;
-                        }
-                    }
-
-                    if (RandomPassword.MyExit == "ex" && ListOfTasks.Count == 0)
-                    {
-                        //Session7zPassCount = Miki.CalcStrings.Add(Session7zPassCount, Convert.ToString(TempPassCount))[0];
-                        Console.WriteLine(ExitReason);
+                        ExitReason2 = DictExitReason;
+                        Console.WriteLine(ExitReason1 + ExitReason2);
                         return;
                     }
-
                 }
 
-
-                //List<string> PassList = LehmerGen.Passwords.PassListFromDig(1, false);
-                //ExtrMyPass.Value = PassList[0];//MyPass;
-                //TempPassCount++;
-                //TempPassCountS = Miki.CalcStrings.Add(TempPassCountS, "1")[0];
-
-                while (ListOfTasks.Count < TaskCount)
+                if (RandomPassword.MyExit == "ex" && PassRunList.Count == 0)
                 {
-                    ExtrMyPass.Value = LehmerGen.Passwords.PassFromDig();//PassList[0];//MyPass;
-                    SessionPassCountS = Miki.CalcStrings.Add("1", SessionPassCountS)[0];
-                    string LocalSessionPassCountS = SessionPassCountS;
-                    Session7zPassCount = SessionPassCountS;
-                    ListOfTasks.Add(Task.Run(async () => await ExtractFile(ZipFile, CodedFile, ExtrMyPass.Value, LocalSessionPassCountS).ConfigureAwait(false)));
+                    ExitReason2 = DictExitReason;
+                    Console.WriteLine(ExitReason1 + ExitReason2);
+                    return;
+                }
 
+                while (PassRunList.Count < Task7zCount)
+                {
+                    if (l == 0) //there is a time to generate DictionaryNext.txt, not waiting...
+                    {
+                        Task.Run(async () => await CheckForDictionary(LehmerGen.Passwords.ZipDictSize, DictFile, DictFileNext, "7z", SesPassCountGenSAsync.Value)).ConfigureAwait(false);
+                    }
+                    
+                    ExtrMyPass.Value = TempDictList[l];
+                    SesPassCountGenSAsync.Value = Miki.CalcStrings.Add("1", SesPassCountGenSAsync.Value)[0];
+                    Task.Run(async () => await ExtractFile(CodedFile, ExtrMyPass.Value, SesPassCountGenSAsync.Value).ConfigureAwait(false));
+                    lock (locking_object)
+                    {
+                        PassRunList.Add(ExtrMyPass.Value);
+                    }
+                    SessionPassCountDoneS = SesPassCountGenSAsync.Value;
+                    l++;
+
+                    if (l == TempDictList.Count) //here we must have Dictionary.txt, so rename DictionaryNext.txt or generate it
+                    {
+                        File.Delete(DictFile);
+                        Console.WriteLine();
+                        Console.WriteLine("Dictionary.txt checked... deleted...");
+                        await Task.Run(() => CheckForDictionary(LehmerGen.Passwords.ZipDictSize, DictFile, DictFileNext, "7z", SesPassCountGenSAsync.Value)).ConfigureAwait(true);
+                        TempDictList = new List<string>(File.ReadAllLines(DictFile));
+                        l = 0;
+                        break;
+                    }
                 }
 
             }
         }
-
-
+        
         private static async void RunJTRProgram()
         {
             StartTime = DateTime.Now;
-            string JTRFile = "";
-            string ZipFile = "";
-            List<Task> ListOfTasks7z = new List<Task>();
-            //Stopwatch sw7z = new Stopwatch();
+            string JTRFile;
+            string ZipFile;
 
             if (RandomPassword.CurrentOS == "Windows")
             {
@@ -603,72 +665,35 @@ namespace RandomPassword
             string JTRDir = System.IO.Path.Combine(ProgramDir, "JTR", "run");
             Encoding isoLatin1Encoding = Encoding.GetEncoding("ISO-8859-1");
 
+            string ExitReason1 = "Safe exit";
+            string ExitReason2 = "";
 
-
-            string IterAll = "";
-
-            string ExitReason = "Safe Exit";
-
-            List<string> ProgressStringList = ReadProgress();
             //ProgressString is a real password number, eg. 1 is for 000000000...0, and it is last chcecked password
             //but password 000000...0 cames from iteration 0, so if we want to check iteration 0, ProgressString should be -1
-            if (!File.Exists(DictFile))
-            {
-                if (!File.Exists(DictFileNext))
-                {
-                    Console.WriteLine("");
-                    Console.WriteLine("Generate new DictionaryNext.txt file:  " + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-                    List<string> PassList = LehmerGen.Passwords.PassListFromDig(LehmerGen.Passwords.JTRDictSize, true);
-                    File.WriteAllLines(DictFileNext, PassList.ToArray(), isoLatin1Encoding);
 
-                    PassList.Clear();
-
-                    IterAll = Miki.CalcStrings.Add(LehmerGen.Passwords.IterDone, Convert.ToString(LehmerGen.Passwords.JTRDictSize))[0];
-
-                    Console.WriteLine("");
-                    Console.WriteLine("Done - DictionaryNext.txt file:  " + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-                    Console.WriteLine("");
-                    Console.WriteLine("Last iteration:       " + LehmerGen.Passwords.IterDone);
-                    Console.WriteLine("New iteration:        " + LehmerGen.Passwords.IterToDo);
-                    Console.WriteLine("End iteration:        " + IterAll);
-                    Console.WriteLine("This Pool iteration:  " + LehmerGen.Passwords.JTRDictSize);
-                    Console.WriteLine("Max Pool iteration:   " + LehmerGen.Passwords.PassIterPoolMaxFix);
-                    Console.WriteLine("");
-
-
-                    SaveProgress(IterAll, LehmerGen.Passwords.PassIterPoolMaxFix, "JTR");
-                    LehmerGen.Passwords.IterDone = IterAll;
-                    LehmerGen.Passwords.IterToDo = Miki.CalcStrings.Add(LehmerGen.Passwords.IterDone, "1")[0];
-
-                    if (Miki.CalcCompare.StringBigger(IterAll, LehmerGen.Passwords.PassIterPoolMaxFix) < 2)
-                    {
-                        RandomPassword.MyExit = "ex";
-                        ExitReason += " - Exhausted Pool.";
-                    }
-                }
-            }
-
+            StopwatchJob = Stopwatch.StartNew();
             try
             {
                 while (true)
                 {
-                    // save the list to the file and save configs too....
-                    if (!File.Exists(DictFile))
-                    {
-                        System.IO.File.Move(DictFileNext, DictFile);
-                    }
+
+                    await Task.Run(() => CheckForDictionary(LehmerGen.Passwords.JTRDictSize, DictFile, DictFileNext, "JTR", SessionPassCountDoneS)).ConfigureAwait(true);
+                    ExitReason2 = DictExitReason;
+
                     var swHC = Stopwatch.StartNew();
                     Console.WriteLine("");
                     Console.WriteLine("++++++++++ Start JTR: {0} ++++++++++", System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
                     Console.WriteLine("");
                     Directory.SetCurrentDirectory(JTRDir);
 
-                    ProcessStartInfo pro = new ProcessStartInfo();
-                    pro.WindowStyle = ProcessWindowStyle.Hidden;
-                    pro.UseShellExecute = false;
-                    pro.RedirectStandardInput = true;
-                    pro.CreateNoWindow = false; //false is faster
-                    pro.FileName = JTRFile;
+                    ProcessStartInfo pro = new ProcessStartInfo
+                    {
+                        WindowStyle = ProcessWindowStyle.Hidden,
+                        UseShellExecute = false,
+                        RedirectStandardInput = true,
+                        CreateNoWindow = false,
+                        FileName = JTRFile
+                    };
                     string MyPasswordFile = System.IO.Path.Combine(ProgramDir, "Dictionary", "Dictionary.txt");
                     string MyHash = System.IO.Path.Combine(ProgramDir, "Coded", "Hash.txt");
                     string MyResult = System.IO.Path.Combine(ProgramDir, "JTR", "run", "john.pot");
@@ -676,45 +701,11 @@ namespace RandomPassword
 
                     Process x = Process.Start(pro);
 
+                    Thread.Sleep(10000);
                     if (RandomPassword.MyExit == "n")
                     {
-
-                        //start generate new list, wait for it... then wait for x end....
-                        if (!File.Exists(DictFileNext))
-                        {
-                            Console.WriteLine("");
-                            Console.WriteLine("Generate new DictionaryNext.txt file:  " + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-                            Console.WriteLine("");
-                            List<string> PassList = LehmerGen.Passwords.PassListFromDig(LehmerGen.Passwords.JTRDictSize, true);
-
-                            File.WriteAllLines(DictFileNext, PassList.ToArray(), isoLatin1Encoding);
-                            PassList.Clear();
-
-                            IterAll = Miki.CalcStrings.Add(LehmerGen.Passwords.IterDone, Convert.ToString(LehmerGen.Passwords.JTRDictSize))[0];
-
-                            Console.WriteLine("");
-                            Console.WriteLine("Done - DictionaryNext.txt file:  " + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-
-                            Console.WriteLine("");
-                            Console.WriteLine("Last iteration:       " + LehmerGen.Passwords.IterDone);
-                            Console.WriteLine("New iteration:        " + LehmerGen.Passwords.IterToDo);
-                            Console.WriteLine("End iteration:        " + IterAll);
-                            Console.WriteLine("This Pool iteration:  " + LehmerGen.Passwords.JTRDictSize);
-                            Console.WriteLine("Max Pool iteration:   " + LehmerGen.Passwords.PassIterPoolMaxFix);
-                            Console.WriteLine("");
-
-                            SaveProgress(IterAll, LehmerGen.Passwords.PassIterPoolMaxFix, "JTR");
-                            LehmerGen.Passwords.IterDone = IterAll;
-                            LehmerGen.Passwords.IterToDo = Miki.CalcStrings.Add(LehmerGen.Passwords.IterDone, "1")[0];
-
-                            if (Miki.CalcCompare.StringBigger(IterAll, LehmerGen.Passwords.PassIterPoolMaxFix) < 2)
-                            {
-                                RandomPassword.MyExit = "ex";
-                                ExitReason += " - Exhausted Pool.";
-                            }
-
-                        }
-
+                        await Task.Run(() => CheckForDictionary(LehmerGen.Passwords.JTRDictSize, DictFile, DictFileNext, "JTR", SessionPassCountDoneS)).ConfigureAwait(true);
+                        ExitReason2 = DictExitReason;
                     }
 
                     x.WaitForExit();
@@ -723,15 +714,11 @@ namespace RandomPassword
                     Console.WriteLine("");
 
                     swHC.Stop();
-                    long PassPerSec = (LehmerGen.Passwords.JTRDictSize / (swHC.ElapsedMilliseconds / 1000));
-                    long PassPerMin = PassPerSec * 60;
-                    string InfoString = String.Format("JTR Speed:   {0} Pass/s,    {1} Pass/min", PassPerSec, PassPerMin);
-                    Console.WriteLine(InfoString);
+                    TimeSpan span = EndTime.Subtract(RandomPassword.StartTime);
+                    CalculateSpeed(SessionPassCountDoneS, span.TotalNanoseconds, LehmerGen.Passwords.JTRDictSize, swHC.Elapsed.TotalNanoseconds);
+                    Console.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " JTR Speed Act/Full: " + MySpeedTempMin + " / " + MySpeedMin + " /m  " + MySpeedTempSec + " / " + MySpeedSec + " /s" + "   FalsePos: " + FalsePosCount);
 
                     bool DeleteDictFile = true;
-
-                    //Always ExitCode = 0
-
 
                     if (x.ExitCode == 0)
                     {
@@ -744,18 +731,17 @@ namespace RandomPassword
                         if (MyPasss != null)
                         {
                             int InString = MyPasss.IndexOf(":");
-                            MyPasss = MyPasss.Substring(InString + 1);
-                            //MyPasss = Miki.CalcStringExt.Right(MyPasss, 32);
-                            ProcessStartInfo pro7z = new ProcessStartInfo();
-                            pro7z.WindowStyle = ProcessWindowStyle.Hidden;
-                            pro7z.UseShellExecute = false;
-                            pro7z.RedirectStandardError = true;
-                            pro7z.RedirectStandardOutput = true;
-                            pro7z.CreateNoWindow = false; //false is faster
-                            pro7z.FileName = ZipFile;
-
-                            pro7z.Arguments = string.Format("t \"{0}\" -p\"{1}\" -y", CodedFile, MyPasss); //x lub t, t działa szybciej a wynik i tak zapisywany jest do pliku
-
+                            MyPasss = MyPasss[(InString + 1)..];
+                            ProcessStartInfo pro7z = new ProcessStartInfo
+                            {
+                                WindowStyle = ProcessWindowStyle.Hidden,
+                                UseShellExecute = false,
+                                RedirectStandardError = true,
+                                RedirectStandardOutput = true,
+                                CreateNoWindow = false,
+                                FileName = ZipFile,
+                                Arguments = string.Format("t \"{0}\" -p\"{1}\" -y", CodedFile, MyPasss)
+                            };
                             Process x7z = Process.Start(pro7z);
 
                             x7z.WaitForExit();
@@ -771,11 +757,9 @@ namespace RandomPassword
                                 DeleteDictFile = false;
                                 Console.WriteLine("");
                                 Console.WriteLine("Cracking successful, password in the Output directory. ;-)");
-                                //Console.ReadKey();
                                 x7z.Dispose();
                                 x7z.Close();
                                 return;
-                                //System.Environment.Exit(0);
 
                             }
                             if (x7z.ExitCode == 2)
@@ -785,20 +769,16 @@ namespace RandomPassword
                                 Console.WriteLine("");
                                 List<string> TempDictList = new List<string>(File.ReadAllLines(DictFile));
 
-                                int FindPos = TempDictList.IndexOf(MyPasss);
-
-                                TempDictList.RemoveRange(0, FindPos + 1);
+                                TempDictList.Remove(MyPasss);
 
                                 File.Delete(DictFile);
                                 File.WriteAllLines(DictFile, TempDictList.ToArray(), isoLatin1Encoding);
                                 TempDictList.Clear();
-                                string MyPasswordFalseFilename = "FalsePassword-" + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "-.txt";
+                                string MyPasswordFalseFilename = "FalsePassword-" + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + ".txt";
                                 string MyPasswordFalse = System.IO.Path.Combine(ProgramDir, "Output", MyPasswordFalseFilename);
 
                                 Console.WriteLine("Move john.pot file to FalsePassword....");
                                 System.IO.File.Move(MyResult, MyPasswordFalse);
-
-                                //File.Delete(MyResult);
 
                                 Console.WriteLine("");
                                 Console.WriteLine("Return to check rest of the list....");
@@ -822,9 +802,14 @@ namespace RandomPassword
                     if (RandomPassword.MyExit == "e")
                     {
                         Console.WriteLine("");
-                        Console.WriteLine(ExitReason);
+                        Console.WriteLine(ExitReason1 + ExitReason2);
                         Console.ReadKey();
                         return;
+                    }
+                    if (RandomPassword.MyExit == "n")
+                    {
+                        Console.WriteLine("");
+                        Console.WriteLine("Dictionary checked" + ExitReason2);
                     }
 
                     if (RandomPassword.MyExit == "ex")
@@ -834,10 +819,9 @@ namespace RandomPassword
                     x.Dispose();
                     x.Close();
 
-                    RandomPassword.ElapsSec7z = RandomPassword.sw7zTemp.Elapsed.TotalSeconds;
-                    RandomPassword.sw7zTemp = Stopwatch.StartNew();
+                    RandomPassword.ElapsNsJob = RandomPassword.StopwatchJob.Elapsed.TotalNanoseconds;
+                    RandomPassword.StopwatchJob = Stopwatch.StartNew();
                     RandomPassword.EndTime = DateTime.Now;
-                    //CalculateSpeed();
                 }
 
             }
@@ -855,10 +839,8 @@ namespace RandomPassword
         private static async void RunHashcatProgram()
         {
             StartTime = DateTime.Now;
-            string HascatFile = "";
-            string ZipFile = "";
-            List<Task> ListOfTasks7z = new List<Task>();
-            //Stopwatch sw7z = new Stopwatch();
+            string HascatFile;
+            string ZipFile;
 
             if (RandomPassword.CurrentOS == "Windows")
             {
@@ -877,52 +859,16 @@ namespace RandomPassword
             string HashcatDir = System.IO.Path.Combine(ProgramDir, "Hashcat");
             Encoding isoLatin1Encoding = Encoding.GetEncoding("ISO-8859-1");
 
+            string ExitReason1 = "Safe exit";
+            string ExitReason2 = "";
 
-
-            string IterAll = "";
-            //string IterLastDone;
-            //string IterToDo;
-            string ExitReason = "Safe Exit";
-            //List<string> ProgressStringList = new List<string>();
-            List<string> ProgressStringList = ReadProgress();
             //ProgressString is a real password number, eg. 1 is for 000000000...0, and it is last chcecked password
             //but password 000000...0 cames from iteration 0, so if we want to check iteration 0, ProgressString should be -1
-            if (!File.Exists(DictFile))
-            {
-                if (!File.Exists(DictFileNext))
-                {
-                    Console.WriteLine("");
-                    Console.WriteLine("Generate new DictionaryNext.txt file:  " + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-                    List<string> PassList = LehmerGen.Passwords.PassListFromDig(LehmerGen.Passwords.HCDictSize, true);
-                    File.WriteAllLines(DictFileNext, PassList.ToArray(), isoLatin1Encoding);
 
-                    PassList.Clear();
+            await Task.Run(() => CheckForDictionary(LehmerGen.Passwords.HCDictSize, DictFile, DictFileNext, "HC", SessionPassCountDoneS)).ConfigureAwait(true);
+            ExitReason2 = DictExitReason;
 
-                    IterAll = Miki.CalcStrings.Add(LehmerGen.Passwords.IterDone, Convert.ToString(LehmerGen.Passwords.HCDictSize))[0];
-
-                    Console.WriteLine("");
-                    Console.WriteLine("Done - DictionaryNext.txt file:  " + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-                    Console.WriteLine("");
-                    Console.WriteLine("Last iteration:       " + LehmerGen.Passwords.IterDone);
-                    Console.WriteLine("New iteration:        " + LehmerGen.Passwords.IterToDo);
-                    Console.WriteLine("End iteration:        " + IterAll);
-                    Console.WriteLine("This Pool iteration:  " + LehmerGen.Passwords.HCDictSize);
-                    Console.WriteLine("Max Pool iteration:   " + LehmerGen.Passwords.PassIterPoolMaxFix);
-                    Console.WriteLine("");
-
-
-                    SaveProgress(IterAll, LehmerGen.Passwords.PassIterPoolMaxFix, "HC");
-                    LehmerGen.Passwords.IterDone = IterAll;
-                    LehmerGen.Passwords.IterToDo = Miki.CalcStrings.Add(LehmerGen.Passwords.IterDone, "1")[0];
-
-                    if (Miki.CalcCompare.StringBigger(IterAll, LehmerGen.Passwords.PassIterPoolMaxFix) < 2)
-                    {
-                        RandomPassword.MyExit = "ex";
-                        ExitReason += " - Exhausted Pool.";
-                    }
-                }
-            }
-
+            StopwatchJob = Stopwatch.StartNew();
             try
             {
                 while (true)
@@ -938,69 +884,27 @@ namespace RandomPassword
                     Console.WriteLine("");
                     Directory.SetCurrentDirectory(HashcatDir);
 
-                    ProcessStartInfo pro = new ProcessStartInfo();
-                    pro.WindowStyle = ProcessWindowStyle.Hidden;
-                    pro.UseShellExecute = false;
-
-                    pro.CreateNoWindow = false; //false is faster
-                    pro.FileName = HascatFile;
                     string MyPasswordFile = System.IO.Path.Combine(ProgramDir, "Dictionary", "Dictionary.txt");
                     string MyHash = System.IO.Path.Combine(ProgramDir, "Coded", "Hash.txt");
                     string MyResult = System.IO.Path.Combine(ProgramDir, "Output", "MyPasswordHashcat.txt");
-                    pro.Arguments = string.Format("{0} -o {1} {2} {3}", HashcatParam, MyResult, MyHash, DictFile);
 
+                    ProcessStartInfo pro = new ProcessStartInfo
+                    {
+                        WindowStyle = ProcessWindowStyle.Hidden,
+                        UseShellExecute = false,
+                        CreateNoWindow = false,
+                        FileName = HascatFile,
+                        Arguments = string.Format("{0} -o {1} {2} {3}", HashcatParam, MyResult, MyHash, DictFile)
+                    };
                     Process x = Process.Start(pro);
 
-                    //Thread.Sleep(10000);
-
+                    Thread.Sleep(10000);
 
                     if (RandomPassword.MyExit == "n")
                     {
-
-                        //ProgressStringList = ReadProgress();
-                        //IterLastDone = ProgressStringList[0];
-                        //ProgressStringList.Clear();
-                        //LehmerGen.Passwords.IterDone = IterLastDone;
-                        //IterToDo = Miki.CalcStrings.Add(IterLastDone, "1")[0]; //as above, this is next password to check
-                        //LehmerGen.Passwords.IterToDo = IterToDo;
-                        //LehmerGen.Passwords.PrepareGeneratorNext(true); //Prepare generator
-
                         //start generate new list, wait for it... then wait for x end....
-                        if (!File.Exists(DictFileNext))
-                        {
-                            Console.WriteLine("");
-                            Console.WriteLine("Generate new DictionaryNext.txt file:  " + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-                            Console.WriteLine("");
-                            List<string> PassList = LehmerGen.Passwords.PassListFromDig(LehmerGen.Passwords.HCDictSize, true);
-
-                            File.WriteAllLines(DictFileNext, PassList.ToArray(), isoLatin1Encoding);
-                            PassList.Clear();
-
-                            IterAll = Miki.CalcStrings.Add(LehmerGen.Passwords.IterDone, Convert.ToString(LehmerGen.Passwords.HCDictSize))[0];
-
-                            Console.WriteLine("");
-                            Console.WriteLine("Done - DictionaryNext.txt file:  " + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-
-                            Console.WriteLine("");
-                            Console.WriteLine("Last iteration:       " + LehmerGen.Passwords.IterDone);
-                            Console.WriteLine("New iteration:        " + LehmerGen.Passwords.IterToDo);
-                            Console.WriteLine("End iteration:        " + IterAll);
-                            Console.WriteLine("This Pool iteration:  " + LehmerGen.Passwords.HCDictSize);
-                            Console.WriteLine("Max Pool iteration:   " + LehmerGen.Passwords.PassIterPoolMaxFix);
-                            Console.WriteLine("");
-
-                            SaveProgress(IterAll, LehmerGen.Passwords.PassIterPoolMaxFix, "HC");
-                            LehmerGen.Passwords.IterDone = IterAll;
-                            LehmerGen.Passwords.IterToDo = Miki.CalcStrings.Add(LehmerGen.Passwords.IterDone, "1")[0];
-
-                            if (Miki.CalcCompare.StringBigger(IterAll, LehmerGen.Passwords.PassIterPoolMaxFix) < 2)
-                            {
-                                RandomPassword.MyExit = "ex";
-                                ExitReason += " - Exhausted Pool.";
-                            }
-
-                        }
-
+                        await Task.Run(() => CheckForDictionary(LehmerGen.Passwords.HCDictSize, DictFile, DictFileNext, "HC", SessionPassCountDoneS)).ConfigureAwait(true);
+                        ExitReason2 = DictExitReason;
                     }
 
                     x.WaitForExit();
@@ -1009,11 +913,9 @@ namespace RandomPassword
                     Console.WriteLine("");
 
                     swHC.Stop();
-
-
-                    Console.WriteLine("HC Speed:    " + (LehmerGen.Passwords.HCDictSize / (swHC.ElapsedMilliseconds / 1000)) + " Pass/s");
-
-
+                    TimeSpan span = EndTime.Subtract(RandomPassword.StartTime);
+                    CalculateSpeed(SessionPassCountDoneS, span.TotalNanoseconds, LehmerGen.Passwords.HCDictSize,swHC.Elapsed.TotalNanoseconds);
+                    Console.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " HC Speed Act/Full: " + MySpeedTempMin + " / " + MySpeedMin + " /m  " + MySpeedTempSec + " / " + MySpeedSec + " /s" + "   FalsePos: " + FalsePosCount);
 
                     /*-2 = gpu - watchdog alarm
                      - 1 = error
@@ -1022,7 +924,6 @@ namespace RandomPassword
                      2 = aborted
                      3 = aborted by checkpoint
                      4 = aborted by runtime*/
-
 
                     if (x.ExitCode == 0)
                     {
@@ -1034,18 +935,17 @@ namespace RandomPassword
                         Passfile.Dispose();
                         Passfile.Close();
                         int InString = MyPasss.IndexOf(":");
-                        MyPasss = MyPasss.Substring(InString + 1);
-                        //MyPasss = Miki.CalcStringExt.Right(MyPasss, 32);
-                        ProcessStartInfo pro7z = new ProcessStartInfo();
-                        pro7z.WindowStyle = ProcessWindowStyle.Hidden;
-                        pro7z.UseShellExecute = false;
-                        pro7z.RedirectStandardError = true;
-                        pro7z.RedirectStandardOutput = true;
-                        pro7z.CreateNoWindow = false; //false is faster
-                        pro7z.FileName = ZipFile;
-
-                        pro7z.Arguments = string.Format("t \"{0}\" -p\"{1}\" -y", CodedFile, MyPasss); //x lub t, t działa szybciej a wynik i tak zapisywany jest do pliku
-                                                                                                       //x or t, t is much faster, and password is saved to file (it is not necessary to decrypt file)
+                        MyPasss = MyPasss[(InString + 1)..];
+                        ProcessStartInfo pro7z = new ProcessStartInfo
+                        {
+                            WindowStyle = ProcessWindowStyle.Hidden,
+                            UseShellExecute = false,
+                            RedirectStandardError = true,
+                            RedirectStandardOutput = true,
+                            CreateNoWindow = false,
+                            FileName = ZipFile,
+                            Arguments = string.Format("t \"{0}\" -p\"{1}\" -y", CodedFile, MyPasss) //x or t, t is much faster, and password is saved to file (it is not necessary to decrypt file)
+                        };
 
                         Process x7z = Process.Start(pro7z);
 
@@ -1062,12 +962,9 @@ namespace RandomPassword
 
                             Console.WriteLine("");
                             Console.WriteLine("Cracking successful, password in the Output directory. ;-)");
-                            //Console.ReadKey();
                             x7z.Dispose();
                             x7z.Close();
                             return;
-                            //System.Environment.Exit(0);
-
                         }
                         if (x7z.ExitCode == 2)
                         {
@@ -1076,15 +973,12 @@ namespace RandomPassword
                             Console.WriteLine("");
                             List<string> TempDictList = new List<string>(File.ReadAllLines(DictFile));
 
-                            int FindPos = TempDictList.IndexOf(MyPasss);
-
-                            TempDictList.RemoveRange(0, FindPos + 1);
-
+                            TempDictList.Remove(MyPasss);
 
                             File.Delete(DictFile);
                             File.WriteAllLines(DictFile, TempDictList.ToArray(), isoLatin1Encoding);
                             TempDictList.Clear();
-                            string MyPasswordFalseFilename = "FalsePassword-" + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "-.txt";
+                            string MyPasswordFalseFilename = "FalsePassword-" + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + ".txt";
                             string MyPasswordFalse = System.IO.Path.Combine(ProgramDir, "Output", MyPasswordFalseFilename);
                             System.IO.File.Move(MyResult, MyPasswordFalse);
                             Console.WriteLine("");
@@ -1095,7 +989,6 @@ namespace RandomPassword
                             FalsePosCount++;
 
                         }
-
                     }
 
                     if (x.ExitCode == 1)
@@ -1110,20 +1003,26 @@ namespace RandomPassword
                     if (RandomPassword.MyExit == "e")
                     {
                         Console.WriteLine("");
-                        Console.WriteLine(ExitReason);
+                        Console.WriteLine(ExitReason1 + ExitReason2);
                         Console.ReadKey();
                         return;
+                    }
+                    if (RandomPassword.MyExit == "n")
+                    {
+                        Console.WriteLine("");
+                        Console.WriteLine("Dictionary checked" + ExitReason2);
                     }
 
                     if (RandomPassword.MyExit == "ex")
                     {
                         RandomPassword.MyExit = "e";
                     }
+
                     x.Dispose();
                     x.Close();
 
-                    RandomPassword.ElapsSec7z = RandomPassword.sw7zTemp.Elapsed.TotalSeconds;
-                    RandomPassword.sw7zTemp = Stopwatch.StartNew();
+                    RandomPassword.ElapsNsJob = RandomPassword.StopwatchJob.Elapsed.TotalNanoseconds;
+                    RandomPassword.StopwatchJob = Stopwatch.StartNew();
                     RandomPassword.EndTime = DateTime.Now;
                 }
 
@@ -1136,216 +1035,162 @@ namespace RandomPassword
             }
         }
 
-        private static async Task<int> ExtractFile(string ZipDir, string CodedDir, string MyPasss, string SesPassCountS)
+        private static void MakeProcess7z(string ZipDir)
         {
-            int LocalPassCount = 0;
-            string SesPassCountSLocal = SesPassCountS;
-            string SesPassCountSLocalSub = Miki.CalcStrings.Sub(SesPassCountSLocal, "1")[0];
+            ProcessStartInfo pro = new ProcessStartInfo
+            {
+                WindowStyle = ProcessWindowStyle.Hidden,
+                UseShellExecute = false,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                CreateNoWindow = false,
+                FileName = ZipDir,
+                Arguments = "",
+            };
+            RandomPassword.Process7z.Value = pro;
+        }
+        private static async Task ExtractFile(string CodedDir, string MyPass, string SesPassCountS)
+        {
+            string SesPassCountLocalS = SesPassCountS;
             int MyExit = 100;
-
+            string LocalPass = MyPass;
+            int LoopCount = 0;
+            long WaitTime = 0;
+            
             try
             {
-                ProcessStartInfo pro = new ProcessStartInfo();
-                pro.WindowStyle = ProcessWindowStyle.Hidden;
-                pro.UseShellExecute = false;
-                pro.RedirectStandardError = true;
-                pro.RedirectStandardOutput = true;
-                pro.CreateNoWindow = false; //false is faster
-                pro.FileName = ZipDir;
-                //MyPasss = "aaaa";
-                //Stopwatch s = Stopwatch.StartNew();
-                pro.Arguments = string.Format("{0} \"{1}\" -p\"{2}\" -y", ZipParam, CodedDir, MyPasss); //x lub t, t działa szybciej a wynik i tak zapisywany jest do pliku
-                //x or t, t is much faster, and password is saved to file (it is not necessary to decrypt file)
-
-                Process x = await Task.Run(() => Process.Start(pro)).ConfigureAwait(false);
+                ProcessStartInfo Process7zLocal = Process7z.Value;
+                Process7zLocal.Arguments = string.Format("{0} \"{1}\" -p\"{2}\" -y", ZipParam, CodedDir, LocalPass);
+                Process x = await Task.Run(async () => Process.Start(Process7zLocal)).ConfigureAwait(false);
+                lock (locking_object)
+                {
+                    Task7zInProgress++;
+                }
 
                 x.BeginOutputReadLine();
                 x.BeginErrorReadLine();
                 x.WaitForExit();
-
-                //string StOutput = x.StandardError.ReadToEnd();
-                //string StError = x.StandardError.ReadToEnd();
-                //x.WaitForExit();
-
                 MyExit = x.ExitCode;
-
                 x.Dispose();
-                //x.Close();
-                pro = null;
 
-                //FIFO like
-                Stopwatch WaitWatch = Stopwatch.StartNew();
-                int LoopCount = 0;
-                while (SessionPassCountDoneS != SesPassCountSLocalSub)
+                lock (locking_object)
                 {
-                    LoopCount++;
-                    await Task.Delay(1);
+                    Task7zInProgress--;
+                    Task7zWaiting++;
+                }
+                Stopwatch WaitWatch = Stopwatch.StartNew();
+                //FIFO like
+                while (true)
+                {
+                    //while waiting we can do some things
+                    if (LoopCount == 0) //only once while waiting
+                    {
+                        if (Miki.CalcStrings.Div(SesPassCountS, Convert.ToString(Speed7zLoop))[1] == "0")
+                        {
+                            Stopwatch7zLap.Stop();
+                            double FullTime = Stopwatch7zFull.Elapsed.TotalNanoseconds;
+                            double LapTime = Stopwatch7zLap.Elapsed.TotalNanoseconds;
+                            CalculateSpeed(SesPassCountLocalS, FullTime, Speed7zLoop, LapTime);
+                            Console.WriteLine(string.Format("{0}  7z Speed A/F: {1} / {2} /m  {3} / {4} /s  7z: F:{5}/{6} / P:{7} / W:{8} FalsePos:{9}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), MySpeedTempMin, MySpeedMin, MySpeedTempSec, MySpeedSec, PassRunList.Count, GlobalTaskCount, Task7zInProgress, Task7zWaiting, FalsePosCount));
+                            Stopwatch7zLap.Restart();
+                        }
+                    }
+                    if (RandomPassword.DisplayMode == 1)
+                    {
+                        while (LocalPass != PassRunList[0])
+                        {
+                            await Task.Delay(1);
+                            LoopCount++;
+                        }
+                    }
+                        LoopCount++;
+                        break;
+                }
+                lock (locking_object)
+                {
+                    Task7zWaiting--;
                 }
                 WaitWatch.Stop();
-                long WaitTime = WaitWatch.ElapsedMilliseconds;
-                PassCount++;
+                WaitTime = WaitWatch.ElapsedMilliseconds;
 
-                //var sw = Stopwatch.StartNew();
                 if (MyExit == 0)
                 {
-                    SessionPassCountDoneS = Miki.CalcStrings.Add("1", SessionPassCountDoneS)[0];
-                    LocalPassCount = PassCount;
-                    Console.WriteLine(string.Format("Password is: {0}", MyPasss));
-                    SavePassword(MyPasss);
+                    SavePassword(LocalPass);
+                    ProcessStartInfo Process7zLocalCheck = Process7z.Value;
+                    string CodedFileCheck = System.IO.Path.Combine(ProgramDir, "Coded", "CodedCheck.7z");
+                    Process7zLocalCheck.Arguments = string.Format("{0} \"{1}\" -p\"{2}\" -y", ZipParam, CodedFileCheck, LocalPass);
+                    Process y = await Task.Run( () => Process.Start(Process7zLocalCheck));
 
-                    Console.WriteLine("Cracking successful, password in the Output directory. ;-)");
-                    Console.ReadKey();
-                    System.Environment.Exit(MyExit);
+                    y.BeginOutputReadLine();
+                    y.BeginErrorReadLine();
+                    y.WaitForExit();
+                    y.Dispose();
+
+                    if (y.ExitCode == 0) // password is true positive
+                    {
+                        Console.WriteLine("");
+                        Console.WriteLine(string.Format("Password is: {0}", LocalPass));
+                        Console.WriteLine("");
+                        Console.WriteLine("Cracking successful, password in the Output directory. ;-)");
+                        System.Environment.Exit(0);
+                        Console.ReadKey();
+                        return;
+                    }
+                    if (y.ExitCode == 2)
+                    {
+                        Console.WriteLine("");
+                        Console.WriteLine("FALSE POSITIVE");
+                        Console.WriteLine("");
+                        string MyPasswordFalseFilename = "FalsePassword-" + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + ".txt";
+                        string MyPasswordFalse = System.IO.Path.Combine(ProgramDir, "Output", MyPasswordFalseFilename);
+                        string MyPasswordFile = System.IO.Path.Combine(ProgramDir, "Output", "MyPassword7z.txt");
+                        System.IO.File.Move(MyPasswordFile, MyPasswordFalse);
+                        Console.WriteLine("");
+                        Console.WriteLine("Return to check rest of the list....");
+                        Console.WriteLine("");
+                        FalsePosCount++;
+                    }
                 }
 
                 if (MyExit == 2)
                 {
-                    LocalPassCount = PassCount;
                     switch (RandomPassword.DisplayMode)
                     {
                         case 1:
-                            Calculate7zSpeed();
-                            Console.WriteLine(string.Format("{0}  {1}  Speed Temp / Full / Loops: {2} / {3} / {4}  ExC: {5}  ExCx: {6}  SysEx: {7}  7z: {8} / {9} / {10} W: {11}", SesPassCountSLocal, MyPasss, RandomPassword.MySpeedTemp, RandomPassword.MySpeed, LoopCount, MyExit, OtherCode, SysEx, RandomPassword.ActThreadCount, RandomPassword.PublicMyTaskCount, ListProc7za(), WaitTime));
+                            Console.WriteLine(string.Format("{0}  {1}  Speed A/F: {2} / {3} /m  {4} / {5} /s  ExC:{6} ExCx:{7} Err:{8}  7z: F:{9}/{10} / P:{11} / W:{12}  Wait L/T: {13} / {14}", CalcStringExt.SplitString(SesPassCountLocalS), LocalPass, RandomPassword.MySpeedTempMin, RandomPassword.MySpeedMin, RandomPassword.MySpeedTempSec, RandomPassword.MySpeedSec, MyExit, OtherCode, SysEx, PassRunList.Count, RandomPassword.GlobalTaskCount, Task7zInProgress, Task7zWaiting, LoopCount, WaitTime));
                             break;
                         case 2:
-                            Calculate7zSpeed();
-                            Console.WriteLine(string.Format("{0}  {1}  Speed Temp / Full / Loops: {2} / {3} / {4}  ExC: {5}  ExCx: {6}  SysEx: {7}  7z: {8} / {9} / {10} W: {11}", SesPassCountSLocal, MyPasss, RandomPassword.MySpeedTemp, RandomPassword.MySpeed, LoopCount, MyExit, OtherCode, SysEx, RandomPassword.ActThreadCount, RandomPassword.PublicMyTaskCount, ListProc7za(), WaitTime));
+                            Console.WriteLine(string.Format("{0}  {1}  Speed A/F: {2} / {3} /m  {4} / {5} /s  ExC:{6} ExCx:{7} Err:{8}  7z: F:{9}/{10} / P:{11} / W:{12}  Wait L/T: {13} / {14}", CalcStringExt.SplitString(SesPassCountLocalS), LocalPass, RandomPassword.MySpeedTempMin, RandomPassword.MySpeedMin, RandomPassword.MySpeedTempSec, RandomPassword.MySpeedSec, MyExit, OtherCode, SysEx, PassRunList.Count, RandomPassword.GlobalTaskCount, Task7zInProgress, Task7zWaiting, LoopCount, WaitTime));
                             RandomPassword.DisplayMode = 3;
                             break;
                         case 3:
                             break;
                     }
-
                 }
                 else
-
                 {
-                    OtherCode++;
-                    LocalPassCount = PassCount;
-                    Console.WriteLine(string.Format("{0}  {1}  Speed Temp / Full / Loops: {2} / {3} / {4}  ExC: {5}  ExCx: {6}  SysEx: {7}  7z: {8} / {9} / {10} W: {11}", SesPassCountSLocal, MyPasss, RandomPassword.MySpeedTemp, RandomPassword.MySpeed, LoopCount, MyExit, OtherCode, SysEx, RandomPassword.ActThreadCount, RandomPassword.PublicMyTaskCount, ListProc7za(), WaitTime));
-                }
-
-
-                if ((LocalPassCount % 100) == 0) //co 100 czasową obliczam prędkość (calculate Temporary speed after each 100 passwords)
-                {
-                    RandomPassword.ElapsSec7z = RandomPassword.sw7zTemp.Elapsed.TotalSeconds;
-                    RandomPassword.sw7zTemp = Stopwatch.StartNew();
-                    if (PassCount > 2000000000)
-                    { PassCount = 0; }
+                        OtherCode++;
+                    Console.WriteLine(string.Format("{0}  {1}  Speed A/F: {2} / {3} /m  {4} / {5} /s  ExC:{6} ExCx:{7} Err:{8}  7z: F:{9}/{10} / P:{11} / W:{12}  Wait L/T: {13} / {14}", CalcStringExt.SplitString(SesPassCountLocalS), LocalPass, RandomPassword.MySpeedTempMin, RandomPassword.MySpeedMin, RandomPassword.MySpeedTempSec, RandomPassword.MySpeedSec, MyExit, OtherCode, SysEx, PassRunList.Count, RandomPassword.GlobalTaskCount, Task7zInProgress, Task7zWaiting, LoopCount, WaitTime));
                 }
 
             }
 
             catch (System.Exception Ex)
             {
-                SysEx++;
-                PassCount++;
-                LocalPassCount = PassCount;
+                    SysEx++;
                 Console.WriteLine(Ex.Message);
+                return;
 
             }
-            SessionPassCountDoneS = Miki.CalcStrings.Add("1", SessionPassCountDoneS)[0];
-            TempPassCountPublic++;
-            return MyExit;
+
+
+            lock (locking_object) //FIFO like
+            {
+                PassRunList.Remove(LocalPass);
+            }
+            return;
 
         }
-
-        //---------------------------------------------------------------------------------Random
-
-        /*public static void GetMaxCombinations(int CharTabCount, int PassLength)
-        {
-            RandomPassword.MaxCombinations = Math.Pow(CharTabCount, PassLength);
-        }*/
-
-        /* public static string GetRandomAlphanumericString(int length, int chartab)
-         {
-             string alphanumericCharacters = "";
-             switch (chartab)
-             {
-                 case 1:
-                     alphanumericCharacters =
-                 "abcdefghijklmnopqrstuvwxyz";
-                     break;
-                 case 2:
-                     alphanumericCharacters =
-                 "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-                     break;
-                 case 3:
-                     alphanumericCharacters =
-                 "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-                 "abcdefghijklmnopqrstuvwxyz";
-                     break;
-                 case 4:
-                     alphanumericCharacters =
-                 "0123456789";
-                     break;
-                 case 5:
-                     alphanumericCharacters =
-                 "abcdefghijklmnopqrstuvwxyz" +
-                 "0123456789";
-                     break;
-                 case 6:
-                     alphanumericCharacters =
-                 "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-                 "0123456789";
-                     break;
-                 case 7:
-                     alphanumericCharacters =
-                 "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
-                 "abcdefghijklmnopqrstuvwxyz" +
-                 "0123456789";
-                     break;
-
-             }
-
-             return GetRandomString(length, alphanumericCharacters);
-         }*/
-
-
-        /*public static string GetRandomString(int length, IEnumerable<char> characterSet)
-        {
-            if (length < 0)
-                throw new ArgumentException("length must not be negative", "length");
-            if (length > int.MaxValue / 8) // 250 million chars ought to be enough for anybody
-                throw new ArgumentException("length is too big", "length");
-            if (characterSet == null)
-                throw new ArgumentNullException("characterSet");
-            var characterArray = characterSet.Distinct().ToArray();
-            if (characterArray.Length == 0)
-                throw new ArgumentException("characterSet must not be empty", "characterSet");
-
-            var bytes = new byte[length * 8];
-            new RNGCryptoServiceProvider().GetBytes(bytes);
-
-            var result = new char[length];
-            for (int i = 0; i < length; i++)
-            {
-                ulong value = BitConverter.ToUInt64(bytes, i * 8);
-                result[i] = characterArray[value % (uint)characterArray.Length];
-            }
-            return new string(result);
-
-
-        }*/
-
-        //--------------------------------------------------------------------------- 7z Proces count
-        private static int ListProc7z()
-        {
-            int My7zCount = 0;
-            Process[] processCollection = Process.GetProcesses();
-            foreach (Process p in processCollection)
-            {
-                if (p.ProcessName == "7za")
-                {
-                    My7zCount++;
-                }
-            }
-            return My7zCount;
-        }
-
-
-        //------------------------PerfCounter
-
 
         public static string CheckOS()
         {
@@ -1361,46 +1206,41 @@ namespace RandomPassword
             return "Unknown";
         }
 
-        public static void Calculate7zSpeed()
+
+        public static void CalculateSpeed(string FullCount, double FullNs, long LapCount, double LapNs)
         {
-            RandomPassword.EndTime = DateTime.Now;
-            TimeSpan span = RandomPassword.EndTime.Subtract(RandomPassword.StartTime);
-            double MyInterval = span.TotalSeconds;
-            if (MyInterval > 0)
+            //TimeSpan span = EndTime.Subtract(RandomPassword.StartTime);
+            string FullSpeedInterval = Convert.ToString(FullNs);
+            try
             {
-                double DTempSpeed = (PassCount * 60) / MyInterval;
-                RandomPassword.MySpeed = Convert.ToInt64(DTempSpeed);
-            }
+                if (FullSpeedInterval != "0")
+                {
+                    string SFullSpeedS = Miki.CalcStrings.Div(Miki.CalcStrings.Mul(FullCount, "1000000000")[0], FullSpeedInterval)[0];
+                    string SFullSpeed = Miki.CalcStrings.Div(Miki.CalcStrings.Mul(FullCount, "60000000000")[0], FullSpeedInterval)[0];
+                    MySpeedMin = Convert.ToInt64(SFullSpeed);
+                    MySpeedSec = Convert.ToInt64(SFullSpeedS);
+                }
 
-            double MyTempInterval = RandomPassword.ElapsSec7z;
-            if (MyTempInterval > 0)
-            {
-                double DMySPeedTemp = (100 * 60) / MyTempInterval;
-                RandomPassword.MySpeedTemp = Convert.ToInt64(DMySPeedTemp);
+                string LapSpeedInterval = Convert.ToString(LapNs);
+                if (LapSpeedInterval != "0")
+                {
+                    long InSec = LapCount *  1000000000;
+                    long InMin = LapCount * 60000000000;
+                    string SLapSpeedS = Miki.CalcStrings.Div(Convert.ToString(InSec), LapSpeedInterval)[0];
+                    string SLapSpeed = Miki.CalcStrings.Div(Convert.ToString(InMin), LapSpeedInterval)[0];
+                    MySpeedTempMin = Convert.ToInt64(SLapSpeed);
+                    MySpeedTempSec = Convert.ToInt64(SLapSpeedS);
+                }
             }
+            catch
+            {
+                MySpeedMin = -1;
+                MySpeedSec = -1;
+                MySpeedTempMin = -1;
+                MySpeedTempSec = -1;
+            }
+            
         }
-
-        public static void CalculateSpeed()
-        {
-            //RandomPassword.EndTime = DateTime.Now;
-            TimeSpan span = RandomPassword.EndTime.Subtract(RandomPassword.StartTime);
-            double MyInterval = span.TotalSeconds;
-            if (MyInterval > 0)
-            {
-                string STempSpeed = Miki.CalcStrings.Mul(SessionPassCountDoneS, "60")[0];
-                STempSpeed = Miki.CalcStrings.Div(STempSpeed, Convert.ToString(Convert.ToInt64(MyInterval)))[0];
-                //double DTempSpeed = (PassCount * 60) / MyInterval;
-                RandomPassword.MySpeed = Convert.ToInt64(STempSpeed);
-            }
-
-            double MyTempInterval = RandomPassword.ElapsSec7z;
-            if (MyTempInterval > 0)
-            {
-                double DMySPeedTemp = (LehmerGen.Passwords.DictSize * 60) / MyTempInterval;
-                RandomPassword.MySpeedTemp = Convert.ToInt64(DMySPeedTemp);
-            }
-        }
-
         public static void SaveProgress(string DoneIter, string MaxIter, string JobKind)
         {
 
@@ -1409,22 +1249,16 @@ namespace RandomPassword
 
             if (JobKind == "7z")
             {
-                Calculate7zSpeed();
-                Console.WriteLine(DateTime.Now.ToString("HH:mm:ss") + "    " + SessionPassCountDoneS + "    SAVE    " + DoneIter + "    FROM:   " + MaxIter + "    Speed Act/Full: " + MySpeedTemp + " / " + MySpeed + " /m    Tasks7z: " + PublicMyTaskCount);
+                Console.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " Session progress saved...");
             }
             if (JobKind == "HC")
             {
-                CalculateSpeed();
-                Console.WriteLine(DateTime.Now.ToString("HH:mm:ss") + "    " + SessionPassCountDoneS + "    SAVE    " + DoneIter + "    FROM:   " + MaxIter + "    Speed Act/Full: " + MySpeedTemp + " / " + MySpeed + " /m    FalsePos: " + FalsePosCount);
+                Console.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " Session progress saved...");
             }
             if (JobKind == "JTR")
             {
-                CalculateSpeed();
-                Console.WriteLine(DateTime.Now.ToString("HH:mm:ss") + "    " + SessionPassCountDoneS + "    SAVE    " + DoneIter + "    FROM:   " + MaxIter + "    Speed Act/Full: " + MySpeedTemp + " / " + MySpeed + " /m    FalsePos: " + FalsePosCount);
+                Console.WriteLine(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + " Session progress saved...");
             }
-
-
-            //IterCount = IterAll;
 
             if (File.Exists(ProgressFile))
             {
@@ -1434,66 +1268,27 @@ namespace RandomPassword
                 File.Move(ProgressFile, ProgressFileBak);
             }
 
-            //if (File.Exists(ProgressFile))
-            //{ File.Delete(ProgressFile); }
-
-
             if (!File.Exists(ProgressFile))
             {
                 // Create a file to write to.
-
-                using (Stream fs = new FileStream(ProgressFile, FileMode.Create, FileAccess.Write, FileShare.None, 0x1000, FileOptions.WriteThrough))
+                using Stream fs = new FileStream(ProgressFile, FileMode.Create, FileAccess.Write, FileShare.None, 0x1000, FileOptions.WriteThrough);
                 using (StreamWriter shellConfigWriter = new StreamWriter(fs))
                 {
 
-                    shellConfigWriter.WriteLine(DoneIter);
-                    shellConfigWriter.Write(String.Join(String.Empty, MaxIter));
+                    shellConfigWriter.WriteLine(CalcStringExt.SplitString(DoneIter));
+                    shellConfigWriter.Write(String.Join(String.Empty, CalcStringExt.SplitString(MaxIter)));
 
                     shellConfigWriter.Flush();
                     shellConfigWriter.Dispose();
                     shellConfigWriter.Close();
-                    //shellConfigWriter.BaseStream.Flush();
                 }
-
-
-                /*using (StreamWriter Writer = File.CreateText(ProgressFile))
-                {
-                    Writer.WriteLine(DoneIter);
-                    Writer.Write(String.Join(String.Empty, MaxIter));
-                    Writer.Flush();
-                    Writer.Dispose();
-                    Writer.Close();
-                }*/
             }
-
-
-
 
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
 
         }
-
-        public static List<string> ReadProgress()
-        {
-            string ProgressFile = System.IO.Path.Combine(ProgramDir, "Config", "SessionProgress.txt");
-            string IterLastDone;
-
-            List<string> ProgressStringList = new List<string>();
-
-            using (System.IO.StreamReader Pfile = new System.IO.StreamReader(ProgressFile))
-            {
-                while ((IterLastDone = Pfile.ReadLine()) != null)
-                { ProgressStringList.Add(IterLastDone); }
-                Pfile.Dispose();
-                Pfile.Close();
-            }
-
-            return ProgressStringList;
-
-        }
-
         public static void SavePassword(string CrackedPass = "")
         {
             if (CrackedPass != "")
@@ -1506,51 +1301,16 @@ namespace RandomPassword
                     using (Stream fs = new FileStream(MyPasswordFile, FileMode.Create, FileAccess.Write, FileShare.None, 0x1000, FileOptions.WriteThrough))
                     using (StreamWriter shellConfigWriter = new StreamWriter(fs))
                     {
-
                         shellConfigWriter.WriteLine("Password is:");
                         shellConfigWriter.Write(String.Join(String.Empty, CrackedPass));
 
                         shellConfigWriter.Flush();
                         shellConfigWriter.Dispose();
                         shellConfigWriter.Close();
-                        //shellConfigWriter.BaseStream.Flush();
                     }
-
-                    // Create a file to write to.
-                    /*using (StreamWriter sw = File.CreateText(MyPasswordFile))
-                    {
-                        sw.WriteLine("Password is:");
-                        sw.Write(String.Join(String.Empty, CrackedPass));
-                        sw.Flush();
-                        sw.Dispose();
-                        sw.Close();
-                    }*/
-                }
-
-            }
-
-        }
-
-        public static int ListProc7za()
-        {
-            int My7zCount = 0;
-
-            Process[] processCollection = Process.GetProcesses();
-
-            foreach (Process p in processCollection)
-            {
-                //await ;
-                if (p.ProcessName == "7za")
-                {
-                    My7zCount++;
                 }
             }
-            //My7zCount = 0;
-
-            return My7zCount;
         }
-
-
     }
 
 }
@@ -1560,13 +1320,12 @@ namespace LehmerGen
 {
     class Passwords
     {
-        public static List<long> IncrementList; //static
-        public static List<long> PoolValueList; //static
-        public static List<long> DivList; //static - 62
-        public static List<long> DigPassListCurr; //dynamic
-        public static List<long> DigPassListNext; //dynamic
+        public static List<long> IncrementList;
+        public static List<long> PoolValueList;
+        public static List<long> DivList = new(1);
+        public static List<long> DigPassListCurr;
+        public static List<long> DigPassListNext;
         public static List<char> CharactersList;
-        public static int PassGenerated = 0;
         public static string IterDone = "";
         public static string IterToDo = "";
         public static int WhatIs;
@@ -1582,53 +1341,59 @@ namespace LehmerGen
         public static int PassMaxLength;
         public static int PassCharListLength;
         public static string PassCharCount;
-        public static uint HCDictSize;
-        public static uint JTRDictSize;
-        public static uint DictSize;
-        public static List<char> MyCharList = new List<char>();
+        public static int HCDictSize;
+        public static int JTRDictSize;
+        public static int ZipDictSize;
+        public static int DictSize;
         public static int TestPassCheck;
         public static int TestPassLoops;
+        public static int CounterDisplay;
+        public static int UseMask = 0;
+        public static List<List<List<long>>> ConvTable = new();
+        public static List<List<char>> MaskTable = new();
+        public static List<List<long>> DigLenList = new();
 
         public static void InitializeGenerator()
         {
-
             PassCharListLength = PassMaxLength - 1;
-
             PassIterCountFix = Miki.CalcStrings.Pow(PassCharCount, Convert.ToString(PassMaxLength))[0]; //include 000000000....00 - zzzzzzzzz....zz, eg. for 00-99 we have 100 possibilities (10^2), so the MaxValue is 99.
             PassIterMaxFix = Miki.CalcStrings.Add(Passwords.PassIterCountFix, "-1")[0]; //the MaxValue is 1 less
             PassTotalCount = PassIterCountFix;
             if (PassMaxLength != PassMinLength)
             {
-
                 for (int i = PassMinLength; i <= PassMaxLength; i++)
                 {
                     string ThisPassPartCount = Miki.CalcStrings.Pow(PassCharCount, Convert.ToString(i))[0];
                     PassIterCountNFix = Miki.CalcStrings.Add(PassIterCountNFix, ThisPassPartCount)[0];
                 }
                 PassTotalCount = PassIterCountNFix;
-
             }
-
 
             Passwords.Increment = Miki.CalcStrings.Pow(IncrementBase, IncrementPower)[0];
 
-
-            List<long> XtempIncr = Miki.CalcConvert.StringToLongList(Increment, 18);
-            List<List<long>> DivMaxValue = Miki.CalcConvert.StringsToLongLists(PassCharCount, PassIterCountFix, 18);
+            Miki.CalcConvert.StringToLongList(in Increment, 18, out List<long> XtempIncr);
+            Miki.CalcConvert.StringsToLongLists(in PassCharCount, in PassIterCountFix, 18, out List<List<long>> DivMaxValue);
 
             Passwords.IncrementList = XtempIncr; //Increment list
             Passwords.PoolValueList = DivMaxValue[1]; //PassPool list
             Passwords.DivList = DivMaxValue[0]; // PassCharCount List
+            string String3 = CalcStringExt.SplitString(Passwords.PassTotalCount);
+            int String3Len = String3.Length;
+            string String1 = CalcStringExt.SplitString(Passwords.PassIterCountFix).PadLeft(String3Len);
+            string String2 = CalcStringExt.SplitString(Passwords.PassIterMaxFix).PadLeft(String3Len);
+            string String4 = CalcStringExt.SplitString(Passwords.Increment).PadLeft(String3Len);
 
-            Console.WriteLine("Pass Iteration Count:             " + Passwords.PassIterCountFix);
-            Console.WriteLine("Pass Max Iteration Value:         " + Passwords.PassIterMaxFix);
-            Console.WriteLine("Pass Total Count:                 " + Passwords.PassTotalCount);
-            Console.WriteLine("Increment:                        " + Passwords.Increment);
+            Console.WriteLine("Pass Iteration Count:             " + String1);
+            Console.WriteLine("Pass Max Iteration Value:         " + String2);
+            Console.WriteLine("Pass Total Count:                 " + String3);
+            Console.WriteLine("Increment:                        " + String4);
 
             if (Miki.CalcStrings.Div(PassIterCountFix, Passwords.Increment)[1] != "0") //Check if Increment value is good for LCG
             { Console.WriteLine("TRUE - Good Increment: Iteration Count % Increment != 0"); }
             else
             { Console.WriteLine("FALSE - Bad Increment: Iteration Count % Increment == 0"); return; }
+
+            MakeConvTable();
 
         }
 
@@ -1640,7 +1405,7 @@ namespace LehmerGen
             switch (Passwords.WhatIs)
             {
                 case 0:
-                    PassNumber = DigFromPass(LehmerGen.Passwords.IterToDo);
+                    DigFromPassByTab(in LehmerGen.Passwords.IterToDo, out PassNumber);
                     break;
                 case 1:
                     PassNumber = Miki.CalcStrings.Div(Miki.CalcStrings.Mul(LehmerGen.Passwords.IterToDo, Passwords.Increment)[0], Passwords.PassIterCountFix)[1];
@@ -1649,326 +1414,473 @@ namespace LehmerGen
                     PassNumber = LehmerGen.Passwords.IterToDo;
                     break;
             }
-
-            string Xtemp = PassNumber;
-
-            List<long> XtempIncr = Miki.CalcConvert.StringToLongList(Xtemp, 18);
-
-            DigPassListCurr = XtempIncr;
+            Miki.CalcConvert.StringToLongList(in PassNumber, 18, out DigPassListCurr);
 
             if (GetFirst == false)
             {
-                _ = PassFromDig();
-                DigPassListCurr = (DigPassListNext);
+                GetDigPassListNext(DigPassListCurr, out List<long> DigPassListCurrTemp);
+                DigPassListCurr = DigPassListCurrTemp;
                 Console.WriteLine("XXXX");
             }
 
         }
 
-
-
-        public static List<string> PassListFromDig(uint PassToBeGen, bool CounterDisplay)
+        public static void MakeConvTable()
+        {
+            Console.WriteLine("Conversion tables - generating...");
+            List<List<List<long>>> ConvTableLocal = new();
+            List<long> DivListLocal = DivList;
+            List<char> CharactersListLocal = CharactersList;
+            List<List<int>> LenTableLocal = new();
+            string PassIterCountNFixLocal = PassIterCountNFix;
+            int PassMaxLenLocal = PassMaxLength;
+            for (int i = 0; i < CharactersListLocal.Count; i++)
+            {
+                List<List<long>> ConvRow = new();
+                for (int k = 0; k < PassMaxLenLocal; k++)
+                {
+                    List<long> Power = new(1) { k };
+                    List<long> PowResult = Miki.CalcLists.Pow(DivList, Power);
+                    List<long> CharIntToMul = new(1) { i };
+                    List<long> MultResult = Miki.CalcLists.Mul(CharIntToMul, PowResult);
+                    Miki.CalcConvert.ConvertList9To18(in MultResult, out List<long> MultResult18);
+                    ConvRow.Add(MultResult18);
+                }
+                ConvTableLocal.Add(ConvRow);
+            }
+            ConvTable = ConvTableLocal;
+            
+            int LastDigLen = 0;
+            long LastDigFromConv = 0;
+            long ActDigFromConv = 0;
+            List<List<long>>DigLenListLocal = new();
+            //Concept, make long list to compare (DigLenList) similar to ConvTable, before compare with ConvTable,
+            //it will contain XXXX...YYYY numbers, where
+            //XXXX... full number length, YYYY - first digits from this number
+            //look in PassListFromDigMyTab (variable ActDigToCompare)
+            for (int k = 0; k < PassMaxLenLocal; k++)
+            {
+                List<long>RowLenList = new();
+                for (int i = 0; i < CharactersListLocal.Count; i++)
+                {
+                    Miki.CalcIntExt.LongLength(ConvTableLocal[i][k][^1], out int DigLen); // First step to make XXXX....
+                    Miki.CalcCompare.GetLongFromList(ConvTableLocal[i][k], 4, DigLen, out ActDigFromConv); //four digits to add later (YYYY)
+                    DigLen = 18*(ConvTableLocal[i][k].Count-1) + DigLen; //Now we have XXXX, full digit length
+                    
+                    //to replace zeros with proper length and digits
+                    if (DigLen >= LastDigLen)
+                    { LastDigLen = DigLen; }
+                    if (ActDigFromConv > 0)
+                    { LastDigFromConv = ActDigFromConv;}
+                    //int.MaxValue = 2 147 483 647 -> DigLen (XXXX) is int, LastDigFromConv is long
+                    //so to long.MaxValue in this concept 18digits we can add max 5 places to DigLen making LastDigFromConv,
+                    //I add 4 places, that's enough, then add four digits (YYYY) from earlier calculations
+                    LastDigFromConv = (LastDigLen * 10000) + ActDigFromConv; //now we have XXXX...YYYY
+                    //Console.WriteLine(k + "   " + LastDigLen + "   " + LastDigFromConv);
+                    RowLenList.Add(LastDigFromConv);
+                }
+                DigLenListLocal.Add(RowLenList);
+            }
+            DigLenList = DigLenListLocal;
+            Console.WriteLine("Conversion tables - done...");
+        }
+        public static List<string> PassListFromDigByTab(int PassToBeGen)
         {
 
-            List<string> PassTextListLocal = new List<string>();
-            PassGenerated = 0;
+            List<string> PassTextListLocal = new(PassToBeGen);
+            long PassGeneratedBase = 0;
+            long PassGeneratedFull = 0;
+            int PassOnePercent = PassToBeGen / 100;
+            int CounterDisplayLocal = CounterDisplay;
+            if (PassOnePercent == 0) { PassOnePercent++; }
+            Stopwatch LoopStopwatchFull;
+            List<long> ThisDigPassListCurr = new(DigPassListCurr);
+            List<long> ThisDigPassListNext = new();
 
+            List<char> CharactersListLocal = CharactersList;
+            int CharactersListLocalCount = CharactersListLocal.Count;
+            List<List<char>> MaskTableLocal = MaskTable;
+            List<long> IncrementListLocal = IncrementList;
+            List<long> PoolValueListLocal = PoolValueList;
+            List<List<List<long>>> ConvTableLocal = ConvTable;
+            List<List<long>> DigLenListLocal = DigLenList;
+
+            int PassMinLengthLocal = PassMinLength;
+            int PassMaxLengthLocal = PassMaxLength;
+
+            long LastDisplayCount = 0;
+
+            int MyOut = 10;
+            long DiscardedCount = 0;
+            int UseMaskLocal = UseMask;
+            int FirstNonZero = 0;
+            long TotalIterationDone = 0;
+            LoopStopwatchFull = Stopwatch.StartNew();
             while (true)
             {
-                string Pass = PassFromDig();
+                List<string> PassFromDigList = new(PassMaxLengthLocal); //new password in string
+                List<char> MyCharList = new(PassMaxLengthLocal); //new password in char
 
-                PassTextListLocal.Add(Pass);
-                PassGenerated++;
+                List<long> ToCompare = ThisDigPassListCurr;
+                int CharPosMax = PassMaxLengthLocal - 1;
+                string NewPass;
+                FirstNonZero = 0;
 
-                if (CounterDisplay == true)
+                while (CharPosMax >= 0)   //CharPosMax - char position in password, (CharInt-1) char in password
                 {
-                    if (PassGenerated % 100000 == 0)
+                    Miki.CalcIntExt.LongLength(ToCompare[^1], out int ToCompareLen); //Last pos ToCompare length
+                    //prepare XXXX...YYYY (ActDigToCompare) from ToCompare diglist
+                    Miki.CalcCompare.GetLongFromList(in ToCompare, 4,  in ToCompareLen, out long ActDigToCompare); //YYYY
+                    ToCompareLen = 18 * (ToCompare.Count - 1) + ToCompareLen; //Full Length XXXX....
+                    ActDigToCompare = (ToCompareLen * 10000) + ActDigToCompare; //Make 4 places and add ActDigToCompare -> XXXX...YYYY
+                    
+                    int StartCompare = CharPosMax; //if ToCompareLen bigger than DigLenListLocal[CharPosMax][i] - Not possible???
+                    for (int i = 0; i < CharactersListLocalCount; i++)
                     {
+                        if (DigLenListLocal[CharPosMax][i] >= ActDigToCompare)
+                        {
+                            StartCompare = i;
+                            break; 
+                        }
+                    }
+                    //all above is very fast, and now we have StartCompare value,
+                    //so we don't need to search in all ConvTableLocal and do lots of calculation,
+                    //moreover StartCompare is probably first and last position
+                    //we must look at..., so next loop is as short as needed...
+                    
+                    for (int CharInt = StartCompare; CharInt < CharactersListLocalCount; CharInt++)
+                    {
+                        Miki.CalcCompare.ListBigger(ConvTableLocal[CharInt][CharPosMax], in ToCompare, out MyOut);
+                        //Console.WriteLine(CharInt);
+                        if (MyOut == 1)
+                        {
+                            char CharToAdd = CharactersListLocal[CharInt - 1];
 
-                        int PassPercent = (int)(PassGenerated * 100 / PassToBeGen);
-                        string PassGeneratedString = string.Format("Pass Generated: {0}    {1} %", PassGenerated, PassPercent);
-                        Console.Write("\r{0}   ", PassGeneratedString);
+                            if (CharToAdd != '0' || FirstNonZero == 1)
+                            {
+                                if (UseMaskLocal == 1)
+                                {
+                                    int TestMask = MaskTableLocal[CharPosMax].IndexOf(CharToAdd);
+                                    if (TestMask == -1)
+                                    { MyOut = 3; DiscardedCount++; break; } //Discard NUMBER
+                                }
+                                MyCharList.Add(CharToAdd);
+
+                                if (CharToAdd != '0')
+                                {
+                                    ToCompare = Miki.CalcLists.Sub(ToCompare, ConvTableLocal[CharInt - 1][CharPosMax]);
+                                    FirstNonZero = 1;
+                                }
+
+                                break;
+                            }
+                            else
+                            { break; }
+                        }
+                        if (MyOut == 0)
+                        {
+                            char CharToAdd = CharactersListLocal[CharInt];
+
+                            if (CharToAdd != '0' || FirstNonZero == 1)
+                            {
+                                if (UseMaskLocal == 1)
+                                {
+                                    int TestMask = MaskTableLocal[CharPosMax].IndexOf(CharToAdd);
+                                    if (TestMask == -1)
+                                    { MyOut = 3; DiscardedCount++; break; } //Discard NUMBER
+                                }
+                                MyCharList.Add(CharToAdd);
+
+                                if (CharToAdd != '0')
+                                {
+                                    ToCompare = Miki.CalcLists.Sub(ToCompare, ConvTableLocal[CharInt][CharPosMax]);
+                                    FirstNonZero = 1;
+                                }
+
+                                break;
+                            }
+                            else
+                            { break; }
+                        }
+
+                        if ((CharInt == CharactersListLocalCount - 1) && (MyOut == 2))
+                        {
+                            char CharToAdd = CharactersListLocal[CharInt];
+
+                            if (CharToAdd != '0' || FirstNonZero == 1)
+                            {
+                                if (UseMaskLocal == 1)
+                                {
+                                    int TestMask = MaskTableLocal[CharPosMax].IndexOf(CharToAdd);
+                                    if (TestMask == -1)
+                                    { MyOut = 3; DiscardedCount++; break; } //Discard NUMBER
+                                }
+                                MyCharList.Add(CharToAdd);
+                                if (CharToAdd != '0')
+                                {
+                                    ToCompare = Miki.CalcLists.Sub(ToCompare, ConvTableLocal[CharInt][CharPosMax]);
+                                    FirstNonZero = 1;
+                                }
+
+                                break;
+                            }
+                            else
+                            { break; }
+                        }
+                    } //end loop for looking for character
+                    if (MyOut == 3)
+                    { break; } //If NUMBER discarded, go to NEW NUMBER
+                    CharPosMax--;
+                } //end loop for char position in password (from up)
+                //MyOut == 3 No Password at all
+
+                if (MyOut != 3) // If Password is possible, adding (or not) zeros...
+                {
+                    if (MyCharList.Count == PassMaxLengthLocal) //Fixed length or not, Not discarded earlier and length is ok, adding fixed (Max)length password as it is...
+                    {
+                        NewPass = new string(MyCharList.ToArray());
+                        PassFromDigList.Add(NewPass);
+                        //base++, nothing else to add
+                        PassGeneratedBase++;
+                    }
+                    else
+                    {
+                        if (PassMaxLengthLocal == PassMinLengthLocal) //Fixed length, Not discarded earlier
+                        {
+                            while (MyCharList.Count < PassMaxLengthLocal) //Adding and checking if zeros in mask...
+                            {
+                                if (UseMaskLocal == 1)
+                                {
+                                    int TestMask = MaskTableLocal[MyCharList.Count].IndexOf('0');
+                                    if (TestMask == -1)
+                                    { MyOut = 3; DiscardedCount++; break; } //Discard NUMBER while adding zeros in fixed length Password
+                                }
+                                MyCharList.Insert(0, '0');
+                            }
+                            if (MyOut != 3)
+                            {
+                                NewPass = new string(MyCharList.ToArray());
+                                PassFromDigList.Add(NewPass);
+                                //base++, added to full length and not discarded
+                                PassGeneratedBase++;
+                            }
+                        }
+                        else
+                        {
+                            if (MyCharList.Count > 0)
+                            {
+                                NewPass = new string(MyCharList.ToArray());
+                                PassFromDigList.Add(NewPass);
+                                //base++, first password without added zeros
+                                PassGeneratedBase++;
+                            }
+                            while (MyCharList.Count < PassMaxLengthLocal)
+                            {
+                                if (UseMaskLocal == 1)
+                                {
+                                    int TestMask = MaskTableLocal[MyCharList.Count].IndexOf('0');
+                                    if (TestMask == -1)
+                                    { MyOut = 3; DiscardedCount++; break; } //Discard NUMBER while adding zeros in non fixed length Password
+                                }
+                                MyCharList.Insert(0, '0');
+                                NewPass = new string(MyCharList.ToArray());
+                                if (MyCharList.Count >= PassMinLengthLocal)
+                                {
+                                    PassFromDigList.Add(NewPass);
+                                    //full -> PassFromDigList.Count
+                                    //add after all
+                                }
+                            }
+                        }
                     }
                 }
-                if (PassGenerated == PassToBeGen)
+                int PassFromDigListCount = PassFromDigList.Count;
+                if (PassFromDigListCount > 0)
                 {
-                    if (CounterDisplay == true)
-                    {
+                    PassTextListLocal.AddRange(PassFromDigList);
+                    PassGeneratedFull += PassFromDigListCount;
+                }
 
-                        int PassPercent = (int)(PassGenerated * 100 / PassToBeGen);
-                        string PassGeneratedString = string.Format("Pass Generated: {0}    {1} %", PassGenerated, PassPercent);
+                //NEW NUMBER
+                List<long> PartDigPassListNext = Miki.CalcLists.Add(ThisDigPassListCurr, IncrementListLocal);
+                ThisDigPassListNext = new(Miki.CalcLists.Div(PartDigPassListNext, PoolValueListLocal)[1]);
+                TotalIterationDone++; //no mater if discarded or not
+                                      //NEW NUMBER DONE...
+
+                if (CounterDisplayLocal == 1)
+                {
+                    LoopStopwatchFull.Stop();
+                    if (LastDisplayCount != PassGeneratedBase && PassGeneratedBase % PassOnePercent == 0)
+                    {
+                        LastDisplayCount = PassGeneratedBase;
+                        int PassPercent = (int)(PassGeneratedBase * 100 / PassToBeGen);
+                        long TimeNsFTotal = (long)LoopStopwatchFull.Elapsed.TotalNanoseconds;
+                        long TimeMsF = LoopStopwatchFull.Elapsed.Milliseconds;
+                        long TimeSecF = LoopStopwatchFull.Elapsed.Seconds;
+                        long TimeMinF = LoopStopwatchFull.Elapsed.Minutes;
+                        long TimeHourF = LoopStopwatchFull.Elapsed.Hours;
+
+                        long SpeedBase = (PassGeneratedBase * 1000000000 / TimeNsFTotal);
+                        long SpeedFull = (PassGeneratedFull * 1000000000 / TimeNsFTotal);
+
+                        string PassGeneratedString = string.Format("B:{0} F:{1} I:{2} D:{3} {4} %  in  h:{5} min:{6} sec:{7} ms:{8} SpeedB:{9} SpeedF:{10} /s", PassGeneratedBase, PassGeneratedFull, TotalIterationDone, DiscardedCount, PassPercent, TimeHourF, TimeMinF, TimeSecF, TimeMsF, SpeedBase, SpeedFull);
                         Console.Write("\r{0}   ", PassGeneratedString);
                     }
-                    break;
+                    LoopStopwatchFull.Start();
                 }
+                if (PassGeneratedBase == PassToBeGen)
+                {
+                        LoopStopwatchFull.Stop();
+                        ThisDigPassListCurr = ThisDigPassListNext;
+                        DigPassListCurr = ThisDigPassListCurr;
+                        long TimeNsFTotal = (long)LoopStopwatchFull.Elapsed.TotalNanoseconds;
+                        long TimeMsF = LoopStopwatchFull.Elapsed.Milliseconds;
+                        long TimeSecF = LoopStopwatchFull.Elapsed.Seconds;
+                        long TimeMinF = LoopStopwatchFull.Elapsed.Minutes;
+                        long TimeHourF = LoopStopwatchFull.Elapsed.Hours;
 
+                        long SpeedBase = (PassGeneratedBase * 1000000000 / TimeNsFTotal);
+                        long SpeedFull = (PassGeneratedFull * 1000000000 / TimeNsFTotal);
+
+                        string PassGeneratedString = string.Format("B:{0} F:{1} I:{2} D:{3} {4} %  in  h:{5} min:{6} sec:{7} ms:{8} SpeedB:{9} SpeedF:{10} /s", PassGeneratedBase, PassGeneratedFull, TotalIterationDone, DiscardedCount, 100, TimeHourF, TimeMinF, TimeSecF, TimeMsF, SpeedBase, SpeedFull);
+                        Console.Write("\r{0}   ", PassGeneratedString);
+                        return PassTextListLocal;
+                }
+                ThisDigPassListCurr = ThisDigPassListNext;
             }
+        }
+        
 
-            return PassTextListLocal;
-
+        public static void GetDigPassListNext(in List<long> DigPassListCurr, out List<long> PartDigPassListNext)
+        {
+            PartDigPassListNext = Miki.CalcLists.Add(DigPassListCurr, IncrementList);
+            PartDigPassListNext = new(Miki.CalcLists.Div(PartDigPassListNext, PoolValueList)[1]);
         }
 
-
-        public static string PassFromDig()
+        public static void DigFromPassByTab(in string MyPass, out string DigString)
         {
-            //generate long string-number and convert to 32-char password
-            //based on Lehmer algorithm
-            //very good to test calculator
-            //to avoid lots of conversion long lists <-> strings, all calculation are made on lists
-            //becouse of calculation on lists, list must be global
-            string Pass = "";
-            long MyDiv = 1000000000000000000;
-            if (LehmerGen.Passwords.MyCharList.Count == 0)
-            {
-
-                List<long> Reminder;
-                //int k;
-
-                Reminder = DigPassListCurr;
-
-                //k = 0;
-
-                for (int h = PassCharListLength; h >= 0; h--) //(int h = PassCharListLength - PassIterPartialNFix; h >= 0; h--)
-                {
-                    List<List<long>> templist = Miki.CalcLists.Div(Reminder, DivList, MyDiv, true);
-                    int TempInt = (int)templist[1][0]; //reminder
-                    LehmerGen.Passwords.MyCharList.Add(CharactersList[TempInt]);
-                    Reminder = templist[0]; //return with quotient
-                }
-
-                MyCharList.Reverse();
-                Pass = new string(MyCharList.ToArray());
-                //return Pass;
-            }
-
-
-
-            if (PassIterCountNFix != "0")
-            {
-
-
-                if (MyCharList[0] == (char)'0' && MyCharList.Count > 1)
-                {
-                    LehmerGen.Passwords.MyCharList.RemoveAt(0);
-                    Pass = new string(MyCharList.ToArray());
-
-                }
-
-                if (MyCharList[0] != (char)'0' || MyCharList.Count == 1)
-                {
-                    List<long> PartDigPassListNext = Miki.CalcLists.Add(DigPassListCurr, IncrementList, MyDiv);
-                    DigPassListNext = Miki.CalcLists.Div(PartDigPassListNext, PoolValueList, MyDiv, true)[1];
-                    DigPassListCurr = DigPassListNext; //new
-                    Pass = new string(MyCharList.ToArray());
-                    LehmerGen.Passwords.MyCharList.Clear();
-                }
-
-                return Pass;
-            }
-            else
-            {
-                Pass = new string(MyCharList.ToArray());
-                List<long> PartDigPassListNext = Miki.CalcLists.Add(DigPassListCurr, IncrementList, MyDiv);
-                DigPassListNext = Miki.CalcLists.Div(PartDigPassListNext, PoolValueList, MyDiv, true)[1];
-                DigPassListCurr = DigPassListNext; //new
-                LehmerGen.Passwords.MyCharList.Clear();
-                return Pass;
-            }
-
-        }
-        public static string DigFromPass(string MyPass)
-        {
-            //convert 32-char password to string-number
-
-            List<char> CharList = new List<char>(MyPass);
+            //convert n-char password to string-number
+            List<char> CharList = new(MyPass);
             int k = 0;
-            List<long> kList = new List<long>() { k };
+            List<char> CharactersListLocal = CharactersList;
 
             List<long> DigList = new List<long>() { 0 };
-
-
+            List<List<List<long>>> ConvTableLocal = ConvTable;
 
             for (int i = CharList.Count - 1; i >= 0; i--)
             {
-
-                int CharInt = CharactersList.IndexOf(CharList[i]);
-
-                List<long> CharIntList = new List<long>() { CharInt };
-
-                List<long> MyPower = Miki.CalcLists.Pow(DivList, kList);
-                List<long> TempDigList = Miki.CalcLists.Mul(CharIntList, MyPower, 1000000000);
-                TempDigList = Miki.CalcConvert.ConvertLists(TempDigList, 1000000000, 1000000000000000000);
-                DigList = Miki.CalcLists.Add(DigList, TempDigList, 1000000000000000000);
+                int CharInt = CharactersListLocal.IndexOf(CharList[i]);
+                List<long> CharValue = ConvTableLocal[CharInt][k];
+                DigList = Miki.CalcLists.Add(DigList, CharValue);
                 k++;
-                kList[0] = k;
             }
-
-            string Dig = Miki.CalcConvert.LongListToString(DigList, "000000000000000000");
-            return Dig;
+            Miki.CalcConvert.LongListToString(in DigList, "000000000000000000", out string Dig);
+            DigString = Dig;
+            return;
         }
-
 
         public static void TestGenerator(int WithCheck, int LoopCount)
         {
             Console.WriteLine("");
             Console.WriteLine("Generator started, wait...");
-            DateTime FullStart = DateTime.Now;
-            DateTime LoopStart = DateTime.Now;
-            DateTime FullEnd;
-            DateTime LoopEnd;
 
-            string ThisCounter = "0";
-            int ThisCounterInt = 0;
+            long Errors = 0;
+
+
+            long GenTimePassMs;
+            long GenTimeCheckMs;
+            long CheckTimeMs;
+            long GenTimeFull;
+
+            long ThisCounterBase = 0;
+            long ThisCounterFull = 0;
+            int PassMinLengthLocal = PassMinLength;
+
+            Stopwatch StopwatchGenerator;
+            Stopwatch StopwatchCheckList;
+            Stopwatch StopwatchControl;
+            Stopwatch StopwatchGenFull = Stopwatch.StartNew();
+            StopwatchGenFull.Stop();
 
             while (true)
             {
+                List<long> PassDigListAct = DigPassListCurr;
 
+                //Generate PassTestList
+                StopwatchGenerator = Stopwatch.StartNew();
+                StopwatchGenFull.Start();
+                List<string> PassTestList = PassListFromDigByTab(LoopCount);
+                StopwatchGenFull.Stop();
+                StopwatchGenerator.Stop();
+                GenTimePassMs = (long)StopwatchGenerator.Elapsed.TotalMilliseconds;
+                GenTimeFull = (long)StopwatchGenFull.Elapsed.TotalMilliseconds;
+                //End generating PassTestList
 
-                ThisCounterInt += 1;
-
+                ThisCounterFull += PassTestList.Count;
+                ThisCounterBase += LoopCount;
                 if (WithCheck == 1)
                 {
-                    List<long> DigPassListAct = DigPassListCurr;
-                    List<string> PassTest = PassListFromDig(1, false);
-                    string DigPassDTest = DigFromPass(PassTest[0]);
-
-                    if (DigPassDTest == Miki.CalcConvert.LongListToString(DigPassListAct, "000000000000000000"))
+                    //Generate CheckList
+                    StopwatchCheckList = Stopwatch.StartNew();
+                    List<List<string>> ControlDigTest = new();
+                    string TempPassString;
+                    for (int i = 0; i < PassTestList.Count; i++)
                     {
-                        if (ThisCounterInt % LoopCount == 0)
+                        Miki.CalcConvert.LongListToString(in PassDigListAct, "000000000000000000", out string PassDigListActS);
+                        TempPassString = PassTestList[i];
+                        string DigString;
+
+                        DigFromPassByTab(TempPassString, out DigString); //change each password to dig
+                        int pos = 0;
+                        while (DigString == PassDigListActS)
                         {
-                            FullEnd = DateTime.Now;
-                            LoopEnd = DateTime.Now;
-                            TimeSpan spanFull = FullEnd.Subtract(FullStart);
-                            TimeSpan spanLoop = LoopEnd.Subtract(LoopStart);
+                            List<string> TempPassStringPair = new(3) { TempPassString, PassDigListActS, DigString };
+                            ControlDigTest.Add(TempPassStringPair);
 
-                            string MyIntervalFull = Miki.CalcStrings.Div(Convert.ToString(Convert.ToInt64(spanFull.TotalMilliseconds)), "1000")[0];
-                            double MyIntervalLoop = spanLoop.TotalMilliseconds / 1000; //Miki.CalcStrings.Div(Convert.ToString(Convert.ToInt64(spanLoop.TotalMilliseconds)), "1000")[0];
+                            if (i + pos < PassTestList.Count - 1)
+                            { pos++; }
+                            else
+                            { break; }
+                            TempPassString = PassTestList[i + pos];
+                            DigFromPassByTab(TempPassString, out DigString); //change each password to dig
+                        }
 
-                            string speedFull = Miki.CalcStrings.Div(ThisCounter, MyIntervalFull)[0];
-                            double speedLoop = Math.Round(LoopCount / MyIntervalLoop, 2);
-                            ThisCounter = Miki.CalcStrings.Add(ThisCounter, Convert.ToString(ThisCounterInt))[0];
+                        GetDigPassListNext(PassDigListAct, out List<long> PassDigListActTemp);
+                        PassDigListAct = PassDigListActTemp;
+                    }
+                    StopwatchCheckList.Stop();
+                    GenTimeCheckMs = (long)StopwatchCheckList.Elapsed.TotalMilliseconds;
+                    //End geneerate CheckList
 
-                            Console.WriteLine(string.Format("{0}    {1}    SpeedTootal: {2}    SpeedLoop: {3}", ThisCounter, PassTest[0], speedFull, speedLoop));
-                            ThisCounterInt = 0;
-                            LoopStart = DateTime.Now;
+                    //Start checking
+                    StopwatchControl = Stopwatch.StartNew();
+                    for (int c = 0; c < ControlDigTest.Count; c++)
+                    {
+                        if (ControlDigTest[c][1] != ControlDigTest[c][2])
+                        {
+                            Console.WriteLine("ERROR");
+                            Console.WriteLine(c);
+                            Console.WriteLine(ControlDigTest[c][0]);
+                            Console.WriteLine(ControlDigTest[c][1]);
+                            Console.WriteLine(ControlDigTest[c][2]);
+                            Errors += 1;
                         }
                     }
-                    else { Console.WriteLine("ERROR"); }
+                    StopwatchControl.Stop();
+                    CheckTimeMs = (long)StopwatchControl.Elapsed.TotalMilliseconds;
+                    Console.WriteLine("");
+                    long FullSpeed = ThisCounterFull * 1000 / GenTimeFull;
+                    Console.WriteLine(string.Format("{0}  {1}  {2}  PassGenTime: {3}  CheckGenTime: {4}  CheckTime: {5}  ms  FullSpeed: {6}  Errors: {7}", ThisCounterBase, ThisCounterFull, PassTestList[0], GenTimePassMs, GenTimeCheckMs, CheckTimeMs, FullSpeed, Errors));
                 }
                 else
                 {
-                    List<long> DigPassListAct = DigPassListCurr;
-                    List<string> PassTest = PassListFromDig(1, false);
-
-                    if (ThisCounterInt % LoopCount == 0)
-                    {
-                        FullEnd = DateTime.Now;
-                        LoopEnd = DateTime.Now;
-                        TimeSpan spanFull = FullEnd.Subtract(FullStart);
-                        TimeSpan spanLoop = LoopEnd.Subtract(LoopStart);
-                        string MyIntervalFull = Miki.CalcStrings.Div(Convert.ToString(Convert.ToInt64(spanFull.TotalMilliseconds)), "1000")[0];
-                        double MyIntervalLoop = spanLoop.TotalMilliseconds / 1000;
-
-                        string speedFull = Miki.CalcStrings.Div(ThisCounter, MyIntervalFull)[0];
-                        double speedLoop = Math.Round(LoopCount / MyIntervalLoop, 2);
-                        ThisCounter = Miki.CalcStrings.Add(ThisCounter, Convert.ToString(ThisCounterInt))[0];
-
-                        Console.WriteLine(string.Format("{0}    {1}    SpeedTootal: {2}    SpeedLoop: {3}", ThisCounter, PassTest[0], speedFull, speedLoop));
-                        ThisCounterInt = 0;
-                        LoopStart = DateTime.Now;
-                    }
+                    long FullSpeed = ThisCounterFull * 1000 / GenTimeFull;
+                    Console.WriteLine("");
+                    Console.WriteLine(string.Format("{0}  {1}  {2}  PassGenTime: {3}  CheckGenTime: {4}  CheckTime: {5}  ms  FullSpeed: {6}  Errors: {7}", ThisCounterBase, ThisCounterFull, PassTestList[0], GenTimePassMs, "N/A", "N/A", FullSpeed, Errors));
                 }
-                if (Passwords.PassTotalCount == ThisCounter)
-                {
-                    return;
-                }
-            }
-        }
-
-        public static void MyPerformanceCheck()
-        {
-            DateTime FullStart = DateTime.Now;
-            DateTime LoopStart = DateTime.Now;
-            DateTime FullEnd;
-            DateTime LoopEnd;
-
-            int ThisCounter = 0;
-
-            int LoopCount = 2000000;
-
-            string TestString = "123456789012345678";
-
-            int Opt = 0;
-            //long TestString = 123456789012345678;
-            //long[] TestList = new long[1];
-            //List<long> TestList = new List<long>() { TestString };
-            //List<long> TestList = new List<long>();
-            //TestList.Clear();
-            //long[] TestList = new long[] { TestString };
-            while (true)
-            {
-
-                ThisCounter += 1;
-                //string to long
-                //long aaa = Int64.Parse(TestString); //27 800
-                //long aaa = Convert.ToInt64(TestString); //27 500
-
-                //long to string
-                //string aaa = Convert.ToString(TestString); //18 600
-                //string aaa = TestString.ToString(); //17 600
-
-                //Zmiana
-                //TestList[0] = TestString; //arr 333 000
-                //TestList[0] = TestString; //list 215 000
-
-                //Dodawanie
-                //TestList = TestList.Append(TestString).ToArray(); TestList = new long[] { }; //arr 10 500
-                //TestList.Add(TestString); TestList.Clear(); // list 220 000
-
-                //Czytanie
-                //long abv = TestList[0]; // arr 295 000
-                //long abv = TestList[0]; //list 275 000
-
-                //Tworzenie
-                //List<long> TestList = new List<long>() { TestString }; //52 000
-                //long[] TestListA = new long[] { TestString }; //150 000
-
-                //Tworzenie + dodanie
-                //long[] TestListA = new long[] { TestString }; List<long> TestListL = TestListA.ToList(); // 17 300
-                //List<long> TestListL = new List<long>() { TestString }; long[] TestListA = TestListL.ToArray(); //26 200
-
-                //Konwersja
-                //List<long> TestListL = TestList.ToList(); //19 200
-                //long [] TestListA = TestList.ToArray(); // 50 000
-
-                //Czytanie Count
-                //int i = TestList.Count(); //array 60 000
-                //int i = TestList.Count(); //list 146 000
-
-                if ((ThisCounter % LoopCount) == 0)
-                {
-
-                    FullEnd = DateTime.Now;
-                    LoopEnd = DateTime.Now;
-
-                    TimeSpan spanFull = FullEnd.Subtract(FullStart);
-                    TimeSpan spanLoop = LoopEnd.Subtract(LoopStart);
-                    int MyIntervalFull = (int)spanFull.TotalMilliseconds;
-                    int MyIntervalLoop = (int)spanLoop.TotalMilliseconds;
-
-                    int speedFull = ThisCounter / MyIntervalFull;
-                    int speedLoop = LoopCount / MyIntervalLoop;
-
-                    Console.WriteLine(string.Format("{0}     SpeedTootal: {1}    SpeedLoop: {2}   Opt: {3}", ThisCounter, speedFull, speedLoop, Opt));
-                    LoopStart = DateTime.Now;
-
-                }
-
             }
         }
     }
-
-
 }
 
 namespace Miki
@@ -1994,14 +1906,14 @@ namespace Miki
                 {
                     Console.WriteLine("Enter first number, confirm Enter:");
                     Dig1 = Console.ReadLine();
-                    isIntDig1 = isNumeric(Dig1); // Dig1.All(char.IsDigit);
+                    isIntDig1 = isNumeric(Dig1);
                     LineRev += 1;
                     if (isIntDig1 == false)
                     { Console.WriteLine("Digits only!!!... try again..."); LineRev += 2; }
                 }
 
-                while (Dig1.Substring(0, 1) == "0") //first digit can't be 0
-                { Dig1 = Dig1.Substring(1); }
+                while (Dig1[..1] == "0") //first digit can't be 0
+                { Dig1 = Dig1[1..]; }
 
                 for (int i = 0; i <= LineRev; i++)
                 {
@@ -2035,13 +1947,13 @@ namespace Miki
                     Console.WriteLine("Enter second number, confirm Enter:");
                     Dig2 = Console.ReadLine();
                     LineRev += 1;
-                    isIntDig2 = isNumeric(Dig2);// Dig2.All(char.IsDigit);
+                    isIntDig2 = isNumeric(Dig2);
                     if (isIntDig2 == false)
                     { Console.WriteLine("Digits only... try again..."); LineRev += 2; }
                 }
 
-                while (Dig2.Substring(0, 1) == "0") //first digit can't be 0
-                { Dig2 = Dig2.Substring(1); }
+                while (Dig2[..1] == "0") //first digit can't be 0
+                { Dig2 = Dig2[1..]; }
 
                 for (int i = 0; i <= LineRev; i++)
                 {
@@ -2053,8 +1965,8 @@ namespace Miki
 
 
 
-                List<string> MyResult = new List<string>();
-                List<string> MyResultCheck = new List<string>();
+                List<string> MyResult;
+                List<string> MyResultCheck;
                 string Check = "Check = FALSE";
 
                 if (CalcType == "+")
@@ -2134,9 +2046,152 @@ namespace Miki
 
         }
 
+        public static void TestRandom()
+        {
+            string Dig1 = "";
+            string Dig2 = "";
+            bool isIntDig1 = false;
+            bool isIntDig2 = false;
+            int LineRev = 0;
+            string MinDigStringLengthS = "0";
+            int MinDigStringLength = 0;
+            string MaxDigStringLengthS = "0";
+            int MaxDigStringLength = 0;
+            int CheckError = 0;
+            long Randoms = 0;
+
+            Console.WriteLine("##############################################################################################");
+            while (isIntDig1 == false)
+            {
+                Console.WriteLine("Enter minimal DigString length:");
+                MinDigStringLengthS = Console.ReadLine();
+                isIntDig1 = isNumeric(MinDigStringLengthS);
+                LineRev += 1;
+                if (isIntDig1 == false)
+                { Console.WriteLine("Digits only!!!... try again..."); LineRev += 2; }
+            }
+            MinDigStringLength = Convert.ToInt32(MinDigStringLengthS);
+
+            while (isIntDig2 == false)
+            {
+                Console.WriteLine("Enter maximal DigString length:");
+                MaxDigStringLengthS = Console.ReadLine();
+                isIntDig2 = isNumeric(MaxDigStringLengthS);
+                LineRev += 1;
+                if (isIntDig2 == false)
+                { Console.WriteLine("Digits only!!!... try again..."); LineRev += 2; }
+            }
+            MaxDigStringLength = Convert.ToInt32(MaxDigStringLengthS);
+
+
+            while (true)
+            {
+                Console.WriteLine(string.Format("####################################################################################   Randoms: {0}    Errors: {1}", Randoms, CheckError));
+                Dig1 = Miki.RandomStringDig(MinDigStringLength, MaxDigStringLength);
+                Dig2 = Miki.RandomStringDig(MinDigStringLength, MaxDigStringLength);
+                Console.WriteLine(string.Format("Dig1={0}", Dig1));
+                Console.WriteLine(string.Format("Dig2={0}", Dig2));
+
+                List<string> MyResult;
+                List<string> MyResultCheck;
+                string Check = "Check = FALSE";
+                //++++++++++++++++++++++
+                Console.WriteLine("++++++++++++++++++++++++++++++");
+                MyResult = CalcStrings.Add(Dig1, Dig2);
+                Console.WriteLine(string.Format("DigR={0}", MyResult[0]));
+                Console.WriteLine("----");
+                Console.WriteLine(string.Format("Dig2={0}", Dig2));
+                Console.WriteLine("====");
+                MyResultCheck = CalcStrings.Sub(MyResult[0], Dig2);
+                Console.WriteLine(string.Format("Dig1={0}", MyResultCheck[0]));
+                if (MyResultCheck[0] == Dig1)
+                { Check = "Check = TRUE"; }
+                else { CheckError += 1; Check = "Check = FALSE"; }
+
+                Console.WriteLine(Check);
+
+
+                //-----------------------
+                Console.WriteLine("------------------------------");
+                MyResult = CalcStrings.Sub(Dig1, Dig2);
+
+
+                Console.WriteLine(string.Format("DigR={0}", MyResult[0]));
+                Console.WriteLine("++++");
+                Console.WriteLine(string.Format("Dig2={0}", Dig2));
+                Console.WriteLine("====");
+                MyResultCheck = CalcStrings.Add(MyResult[0], Dig2);
+                Console.WriteLine(string.Format("Dig1={0}", MyResultCheck[0]));
+                if (MyResultCheck[0] == Dig1)
+                { Check = "Check = TRUE"; }
+                else { CheckError += 1; Check = "Check = FALSE"; }
+                Console.WriteLine(Check);
+
+                //***********************
+                Console.WriteLine("******************************");
+                MyResult = CalcStrings.Mul(Dig1, Dig2);
+                Console.WriteLine(string.Format("DigR={0}", MyResult[0]));
+                Console.WriteLine("////");
+                Console.WriteLine(string.Format("Dig2={0}", Dig2));
+                Console.WriteLine("====");
+                MyResultCheck = CalcStrings.Div(MyResult[0], Dig2);
+                Console.WriteLine(string.Format("Dig1={0}", MyResultCheck[0]));
+                if (MyResultCheck[0] == Dig1)
+                { Check = "Check = TRUE"; }
+                else { CheckError += 1; Check = "Check = FALSE"; }
+                Console.WriteLine(Check);
+
+                // ///////////////////////
+                Console.WriteLine("//////////////////////////////");
+                MyResult = CalcStrings.Div(Dig1, Dig2);
+                Console.WriteLine(string.Format("DigR={0}  R  {1}", MyResult[0], MyResult[1]));
+                Console.WriteLine("****");
+                Console.WriteLine(string.Format("Dig2={0}", Dig2));
+                Console.WriteLine("====");
+                MyResultCheck = CalcStrings.Mul(MyResult[0], Dig2);
+                MyResultCheck = CalcStrings.Add(MyResultCheck[0], MyResult[1]);
+                Console.WriteLine(string.Format("Dig1={0}", MyResultCheck[0]));
+                if (MyResultCheck[0] == Dig1)
+                { Check = "Check = TRUE"; }
+                else { CheckError += 1; Check = "Check = FALSE"; }
+
+                Console.WriteLine(Check);
+                Randoms += 1;
+            }
+        }
+
+        public static string RandomStringDig(int StrMin, int StrMax)
+        {
+            Random RandomLength = new Random();
+            int RandomLengtInt = RandomLength.Next(StrMin, StrMax);
+
+            var chars = "0123456789";
+            char[] stringChars = new char[RandomLengtInt];
+            Random RandomChars = new Random();
+
+            for (int i = 0; i < stringChars.Length; i++)
+            {
+                char NewChar = chars[RandomChars.Next(chars.Length)];
+                while (i == 0 && NewChar == '0')
+                {
+                    NewChar = chars[RandomChars.Next(chars.Length)];
+                }
+                stringChars[i] = NewChar;
+            }
+            string finalString = new String(stringChars);
+
+            return finalString;
+        }
         public static bool isNumeric(string s)
         {
-            char[] MyString = s.ToCharArray();
+            string CleanString;
+
+            if (s[..1] == "+" || s[..1] == "-")
+            { CleanString = s[1..]; }
+            else
+            { CleanString = s; }
+
+            char[] MyString = CleanString.ToCharArray();
             for (int i = 0; i < MyString.Length; i++)
             {
                 if (int.TryParse(MyString[i].ToString(), out int n) == false)
@@ -2144,157 +2199,104 @@ namespace Miki
             }
             return true;
         }
-
-
-
-        public static void RunCalcTest()
-        {
-            //MikiAdd, MikiSub, MikiMul - returns [0]-Int-string-Result, [1]-Abs(Int-string-Result)
-            //MikiDiv - returns [0]-Int-string-Result, [1]-Rest from division
-            //MikiPow - returns [0]-Int-string-Result
-
-            List<string> MyOutputList = new List<string>();
-            string[] TestCalc = new string[2];
-            var sw = Stopwatch.StartNew();
-
-            string Dig1 = "102543890397977681684285524423227768626815861760032026538";
-            //string Dig1 = "99999999999999999999999999999999999999999999999999999999";
-            //string Dig2 = "101111111397977681684285524423227768626815861760032026538";
-            string Dig2 = "815861760032026538";
-
-            Console.WriteLine(Dig1 + "  Length: " + Dig1.Length);
-            Console.WriteLine(Dig2 + "  Length: " + Dig2.Length);
-            List<string> MyOutputListM = new List<string>();
-            List<string> MyOutputListA = new List<string>();
-
-            int RepCount = 100;
-
-            long swMin = 1000000000000;
-            long swMax = 0;
-            long swMsMin = 1000000000;
-            Console.WriteLine("++++++++++++++++++++++++++++++");
-            Console.WriteLine("-------ADD-------");
-            for (int i = 0; i <= RepCount; i++)
-            {
-                sw = Stopwatch.StartNew();
-                MyOutputList = CalcStrings.Add(Dig1, Dig2);
-                sw.Stop();
-                if (sw.ElapsedTicks < swMin) { swMin = sw.ElapsedTicks; swMsMin = sw.ElapsedMilliseconds; }
-                if (sw.ElapsedTicks > swMax) { swMax = sw.ElapsedTicks; }
-            }
-            Console.WriteLine(string.Format("Ticks Min:  {0}    Ticks Max:  {1}    ms Min:  {2}", swMin, swMax, swMsMin));
-            Console.WriteLine(MyOutputList[0]);
-
-            Console.WriteLine("-----ADD CHECK-----");
-            MyOutputListA = CalcStrings.Sub(MyOutputList[0], Dig2);
-            Console.WriteLine(MyOutputListA[0]);
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(MyOutputListA[0] == Dig1);
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine("++++++++++++++++++++++++++++++");
-
-            swMin = 1000000000000;
-            swMax = 0;
-            swMsMin = 1000000000;
-            Console.WriteLine("-------SUB-------");
-            for (int i = 0; i <= RepCount; i++)
-            {
-                sw = Stopwatch.StartNew();
-                MyOutputList = CalcStrings.Sub(Dig1, Dig2);
-                sw.Stop();
-                if (sw.ElapsedTicks < swMin) { swMin = sw.ElapsedTicks; swMsMin = sw.ElapsedMilliseconds; }
-                if (sw.ElapsedTicks > swMax) { swMax = sw.ElapsedTicks; }
-            }
-            Console.WriteLine(string.Format("Ticks Min:  {0}    Ticks Max:  {1}    ms Min:  {2}", swMin, swMax, swMsMin));
-            Console.WriteLine(MyOutputList[0]);
-
-            Console.WriteLine("-----SUB CHECK-----");
-            MyOutputListA = CalcStrings.Add(MyOutputList[0], Dig2);
-            Console.WriteLine(MyOutputListA[0]);
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(MyOutputListA[0] == Dig1);
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine("++++++++++++++++++++++++++++++");
-
-            swMin = 1000000000000;
-            swMax = 0;
-            swMsMin = 1000000000;
-            Console.WriteLine("-------MUL-------");
-            for (int i = 0; i <= RepCount; i++)
-            {
-                sw = Stopwatch.StartNew();
-                MyOutputList = CalcStrings.Mul(Dig1, Dig2);
-                sw.Stop();
-                if (sw.ElapsedTicks < swMin) { swMin = sw.ElapsedTicks; swMsMin = sw.ElapsedMilliseconds; }
-                if (sw.ElapsedTicks > swMax) { swMax = sw.ElapsedTicks; }
-            }
-            Console.WriteLine(string.Format("Ticks Min:  {0}    Ticks Max:  {1}    ms Min:  {2}", swMin, swMax, swMsMin));
-            Console.WriteLine(MyOutputList[0]);
-
-            Console.WriteLine("-----MUL CHECK-----");
-            MyOutputListA = CalcStrings.Div(MyOutputList[0], Dig2);
-            Console.WriteLine(MyOutputListA[0]);
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(MyOutputListA[0] == Dig1);
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine("++++++++++++++++++++++++++++++");
-
-            swMin = 1000000000000;
-            swMax = 0;
-            swMsMin = 1000000000;
-            Console.WriteLine("-------DIV-------");
-            for (int i = 0; i <= RepCount; i++)
-            {
-                sw = Stopwatch.StartNew();
-                MyOutputList = CalcStrings.Div(Dig1, Dig2);
-                sw.Stop();
-                if (sw.ElapsedTicks < swMin) { swMin = sw.ElapsedTicks; swMsMin = sw.ElapsedMilliseconds; }
-                if (sw.ElapsedTicks > swMax) { swMax = sw.ElapsedTicks; }
-            }
-            Console.WriteLine(string.Format("Ticks Min:  {0}    Ticks Max:  {1}    ms Min:  {2}", swMin, swMax, swMsMin));
-            Console.WriteLine(MyOutputList[0]);
-            Console.WriteLine(MyOutputList[1]);
-
-            Console.WriteLine("-----DIV CHECK-----");
-            MyOutputListM = CalcStrings.Mul(MyOutputList[0], Dig2);
-            MyOutputListA = CalcStrings.Add(MyOutputListM[0], MyOutputList[1]);
-            Console.WriteLine(MyOutputListA[0]);
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(MyOutputListA[0] == Dig1);
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine("++++++++++++++++++++++++++++++");
-
-            swMin = 1000000000000;
-            swMax = 0;
-            swMsMin = 1000000000;
-            Console.WriteLine("-------POW-------");
-            for (int i = 0; i <= RepCount; i++)
-            {
-                sw = Stopwatch.StartNew();
-                MyOutputList = CalcStrings.Pow(Dig1, "10");
-                sw.Stop();
-                if (sw.ElapsedTicks < swMin) { swMin = sw.ElapsedTicks; swMsMin = sw.ElapsedMilliseconds; }
-                if (sw.ElapsedTicks > swMax) { swMax = sw.ElapsedTicks; }
-            }
-            Console.WriteLine(string.Format("Ticks Min:  {0}    Ticks Max:  {1}    ms Min:  {2}", swMin, swMax, swMsMin));
-            Console.WriteLine(MyOutputList[0]);
-            Console.WriteLine(MyOutputList[1]);
-        }
-
-
     }
 
     public static class CalcIntExt
     {
-        public static int IntLength(long i)
+        public static void LongLength(in long i, out int IntLen)
         {
+            IntLen =
+                (i >= 100000000000000000) ? 18 : (i >= 10000000000000000) ? 17 :
+                (i >= 1000000000000000) ? 16 : (i >= 100000000000000) ? 15 :
+                (i >= 10000000000000) ? 14 : (i >= 1000000000000) ? 13 :
+                (i >= 100000000000) ? 12 : (i >= 10000000000) ? 11 :
+                (i >= 1000000000) ? 10 : (i >= 100000000) ? 9 :
+                (i >= 10000000) ? 8 : (i >= 1000000) ? 7 :
+                (i >= 100000) ? 6 : (i >= 10000) ? 5 :
+                (i >= 1000) ? 4 : (i >= 100) ? 3 :
+                (i >= 10) ? 2 : 1;
 
+        }
+        public static void DecLength(in decimal i, out int DecLen)
+        {
             if (i == 0)
-                return 1;
+                DecLen = 1;
 
-            return (int)Math.Floor(Math.Log10(i)) + 1;
+            DecLen = (int)Math.Floor(Math.Log10((double)i)) + 1;
+        }
+        static void Mylog10(in long v, out int Mylog)
+        {
+            Mylog = (v >= 1000000000000000000) ? 18 :
+                (v >= 100000000000000000) ? 17 : (v >= 10000000000000000) ? 16 :
+                (v >= 1000000000000000) ? 15 : (v >= 100000000000000) ? 14 :
+                (v >= 10000000000000) ? 13 : (v >= 1000000000000) ? 12 :
+                (v >= 100000000000) ? 11 : (v >= 10000000000) ? 10 :
+                (v >= 1000000000) ? 9 : (v >= 100000000) ? 8 :
+                (v >= 10000000) ? 7 : (v >= 1000000) ? 6 :
+                (v >= 100000) ? 5 : (v >= 10000) ? 4 :
+                (v >= 1000) ? 3 : (v >= 100) ? 2 :
+                (v >= 10) ? 1 : 0;
+        }
+        public static void LongPower(in long MyBase, in int MyPower, out long MyLongPower)
+        {
+            if (MyPower == 0) { MyLongPower = 1; return; }
+
+            long MyResult = MyBase;
+
+            for (int i = 1; i < MyPower; i++)
+            {
+                MyResult *= MyBase;
+            }
+            MyLongPower = MyResult;
+
+        }
+        public static void IntAbs(in int Dig, out int MyAbs)
+        {
+            //NOT USED
+            MyAbs = (Dig + (Dig >> 31)) ^ (Dig >> 31);
         }
 
+
+        public static void DecimalPower(in decimal MyBase, in int MyPower, out decimal MyDecimalPower)
+        {
+            if (MyPower == 0) { MyDecimalPower = 1; return; }
+            decimal MyResult = MyBase;
+
+            for (int i = 1; i < MyPower; i++)
+            {
+                MyResult *= MyBase;
+            }
+            MyDecimalPower = MyResult;
+
+        }
+        public static void MyModuloIntToInt(in int Dig, in int Divider, out int Full, out int MyMod)
+        {
+            if (Dig > Divider) { Full = (Dig / Divider); MyMod = Dig - (Full * Divider); return; }
+            else if (Dig < Divider) { Full = 0; MyMod = Dig; return; }
+            else { Full = 1; MyMod = 0; return; }
+        }
+        public static void MyModuloLongToLong(in long Dig, in long Divider, out long Full, out long MyMod)
+        {
+
+            if (Dig > Divider) { Full = (Dig / Divider); MyMod = Dig - (Full * Divider); return; }
+            else if (Dig < Divider) { Full = 0; MyMod = Dig; return; }
+            else { Full = 1; MyMod = 0; return; }
+        }
+
+        public static void MyModuloDecToLong(in decimal Dig, in long Divider, out long Full, out long MyMod)
+        {
+            if (Dig > Divider) { Full = (long)(Dig / Divider); MyMod = (long)(Dig - ((decimal)Full * Divider)); return; }
+            else if (Dig < Divider) { Full = 0; MyMod = (long)Dig; return; }
+            else { Full = 1; MyMod = 0; return; }
+        }
+
+        public static void MyModuloDecToDec(in decimal Dig, in decimal Divider, out decimal Full, out decimal MyMod)
+        {
+
+            if (Dig > Divider) { Full = decimal.Truncate(Dig / Divider); MyMod = Dig - (Full * Divider); return; }
+            else if (Dig < Divider) { Full = 0; MyMod = Dig; return; }
+            else { Full = 1; MyMod = 0; return; }
+        }
     }
 
     public static class CalcStringExt
@@ -2307,10 +2309,9 @@ namespace Miki
             }
             else
             {
-                return @this.Substring(0, count);
+                return @this[..count];
             }
         }
-
         public static string Right(this string input, int count)
         {
             return input.Substring(Math.Max(input.Length - count, 0), Math.Min(count, input.Length));
@@ -2321,14 +2322,30 @@ namespace Miki
             return input.Substring(Math.Min(start, input.Length), Math.Min(count, Math.Max(input.Length - start, 0)));
         }
 
+        public static string SplitString(string DigString)
+        {
+            string TempString = DigString;
+            TempString.Replace(" ", "");
+            for (int i = DigString.Length - 3; i >= 0; i -= 3)
+            {
+                TempString = TempString.Insert(i, " ");
+            }
+            if (TempString[..1] == " ")
+            { TempString = TempString[1..]; }
+            return TempString;
+        }
+
+        public static string DeSplitString(string DigString)
+        {
+            string TempString = DigString.Replace(" ", "");
+            return TempString;
+        }
     }
 
     public static class CalcLists
     {
-
-        public static List<long> Add(List<long> Dig1List, List<long> Dig2List, long MyDiv)
+        public static List<long> Add(List<long> Dig1List, List<long> Dig2List)
         {
-            //Old, very good
 
             int Dig1ListCount = Dig1List.Count;
             if (Dig1ListCount == 1 && Dig1List[0] == 0)
@@ -2337,52 +2354,43 @@ namespace Miki
             if (Dig2ListCount == 1 && Dig2List[0] == 0)
             { return Dig1List; }
 
-            List<long> MyOutput = new List<long>();
+            List<long> MyOutput = new(Dig1ListCount + 1);
 
-            List<long> Dig1ListTemp;
-            List<long> Dig2ListTemp;
-
-            int Dig1ListTempCount = Dig1ListCount;
-            int Dig2ListTempCount = Dig2ListCount;
+            int DigCountDiff = Dig1ListCount - Dig2ListCount;
 
             long tempUp = 0;
             long temp;
 
-            if (Dig1ListCount < Dig2ListCount)
+            int loops = Dig1ListCount - 1;
+
+            switch (DigCountDiff)
             {
-                Dig1ListTemp = new List<long>(Dig2List);
-                Dig2ListTemp = new List<long>(Dig1List);
-                Dig1ListTempCount = Dig2ListCount;
-                Dig2ListTempCount = Dig1ListCount;
-            }
-            else
-            {
-                Dig1ListTemp = new List<long>(Dig1List);
-                Dig2ListTemp = new List<long>(Dig2List);
+                case > 0:
+                    Dig2List = new(Dig2List);
+                    for (int i = 0; i < DigCountDiff; i++)
+                    { Dig2List.Add(0); }
+                    break;
+                case < 0:
+                    Dig1List = new(Dig1List);
+                    for (int i = 0; i > DigCountDiff; i--)
+                    { Dig1List.Add(0); }
+                    loops = Dig2ListCount - 1;
+                    break;
             }
 
-            int loops = Dig1ListTempCount - 1;
             for (int i = 0; i <= loops; i++) //adding Lists
             {
-                long NextDig2Number = 0;
-                if (i < Dig2ListTempCount)
-                {
-                    NextDig2Number = Dig2ListTemp[i];
+                temp = Dig1List[i] + Dig2List[i] + tempUp;
 
-                }
-
-
-                temp = Dig1ListTemp[i] + NextDig2Number + tempUp;
-
-                if (temp >= MyDiv)
+                if (temp >= 1000000000000000000)
                 {
                     tempUp = 1;
-                    temp -= MyDiv;
+                    temp -= 1000000000000000000;
                     MyOutput.Add(temp);
                     if (i == loops)
                     {
                         MyOutput.Add(tempUp);
-                        break; //????????
+                        break;
                     }
 
                 }
@@ -2393,14 +2401,10 @@ namespace Miki
                 }
 
             }
-            //sw.Stop();
-            //Console.WriteLine(sw.ElapsedTicks);
             return MyOutput;
         }
 
-
-
-        public static List<long> Sub(List<long> Dig1List, List<long> Dig2List, long MyDiv)
+        public static List<long> Sub(List<long> Dig1List, List<long> Dig2List)
         {
             int Dig1ListCount = Dig1List.Count;
             if (Dig1ListCount == 1 && Dig1List[0] == 0)
@@ -2409,49 +2413,42 @@ namespace Miki
             if (Dig2ListCount == 1 && Dig2List[0] == 0)
             { return Dig1List; }
 
-            List<long> Dig1ListTemp;
-            List<long> Dig2ListTemp;
-            List<long> MyOutput = new List<long>();
             int debt = 0;
             long temp;
 
-            int Dig1ListTempCount = Dig1ListCount;
-            int Dig2ListTempCount = Dig2ListCount;
+            int DigCountDiff = Dig1ListCount - Dig2ListCount;
+            CalcCompare.ListBigger(in Dig1List, in Dig2List, out int DigBigger);
 
-            if (CalcCompare.ListBigger(Dig1List, Dig2List) == 2)
+            int loops = Dig1ListCount - 1;
+
+            switch (DigBigger)
             {
-                Dig1ListTemp = new List<long>(Dig2List);
-                Dig2ListTemp = new List<long>(Dig1List);
-                Dig1ListTempCount = Dig2ListCount;
-                Dig2ListTempCount = Dig1List.Count;
+                case 1:
+                    Dig2List = new(Dig2List);
+                    for (int i = 0; i < DigCountDiff; i++)
+                    { Dig2List.Add(0); }
+                    break;
+                case 2:
+                    List<long> DigChangeTemp = new(Dig1List);
+                    for (int i = 0; i > DigCountDiff; i--)
+                    { DigChangeTemp.Add(0); }
+                    Dig1List = new(Dig2List);
+                    Dig2List = new(DigChangeTemp);
+                    loops = Dig2ListCount - 1;
+                    break;
             }
-            else
+            List<long> MyOutput = new(loops + 1);
+
+            for (int i = 0; i <= loops; i++) //Subtract arrays
             {
-                Dig1ListTemp = new List<long>(Dig1List);
-                Dig2ListTemp = new List<long>(Dig2List);
-            }
-
-            //int ListDiff = Dig1ListTempCount - Dig2ListTempCount;
-
-            for (int i = 0; i < Dig1ListTempCount; i++) //Subtract arrays
-            {
-                long NextDig2Number = 0;
-                if (i < Dig2ListTempCount)
-                {
-                    NextDig2Number = Dig2ListTemp[i];
-                }
-
-
-                temp = (Dig1ListTemp[i] - NextDig2Number) - debt;
+                temp = (Dig1List[i] - Dig2List[i]) - debt;
 
                 if (temp < 0)
                 {
-
                     debt = 1;
-                    MyOutput.Add(temp + MyDiv);
+                    MyOutput.Add(temp + 1000000000000000000);
                 }
                 else
-                //if (temp > 0)
                 {
                     debt = 0;
                     MyOutput.Add(temp);
@@ -2459,22 +2456,18 @@ namespace Miki
 
             }
 
-            for (int i = MyOutput.Count - 1; i >= 1; i--)
+            while (MyOutput[^1] == 0 && MyOutput.Count > 1)
             {
-                if (MyOutput[i] == 0)
-                { MyOutput.RemoveAt(i); }
-                if (MyOutput[MyOutput.Count - 1] != 0) //^
-                { break; }
+                MyOutput.RemoveAt(MyOutput.Count - 1);
             }
 
             return MyOutput;
         }
 
-        public static List<long> Mul(List<long> Dig1List, List<long> Dig2List, long MyDiv)
+        public static List<long> Mul(List<long> Dig1List, List<long> Dig2List)
         {
-
             int Dig1ListCount = Dig1List.Count;
-            if (Dig1List.Count == 1)
+            if (Dig1ListCount == 1)
             {
                 if (Dig1List[0] == 1)
                 { return Dig2List; }
@@ -2483,7 +2476,7 @@ namespace Miki
 
             }
             int Dig2ListCount = Dig2List.Count;
-            if (Dig2List.Count == 1)
+            if (Dig2ListCount == 1)
             {
                 if (Dig2List[0] == 1)
                 { return Dig1List; }
@@ -2491,44 +2484,34 @@ namespace Miki
                 { return Dig2List; }
             }
 
-            int Dig1ListTempCount = Dig1ListCount;
-            int Dig2ListTempCount = Dig2ListCount;
-
             int MyPoss = 0;
-            List<long> Dig1ListTemp;
-            List<long> Dig2ListTemp;
-            long tempUp; ;
 
-            if (Dig1List.Count < Dig2List.Count)
+
+            long tempUp;
+            int Loop1Count = Dig1ListCount;
+            int Loop2Count = Dig2ListCount;
+
+            if (Dig1ListCount < Dig2ListCount)
             {
-                Dig1ListTemp = new List<long>(Dig2List);
-                Dig2ListTemp = new List<long>(Dig1List);
-                Dig1ListTempCount = Dig2ListCount;
-                Dig2ListTempCount = Dig1ListCount;
-            }
-            else
-            {
-                Dig1ListTemp = new List<long>(Dig1List);
-                Dig2ListTemp = new List<long>(Dig2List);
+                List<long> DigChangeTemp = (Dig1List);
+                Dig1List = new(Dig2List);
+                Dig2List = new(DigChangeTemp);
+                Loop1Count = Dig2ListCount;
+                Loop2Count = Dig1ListCount;
             }
 
-
-            int Loop1Count = Dig1ListTempCount; //Dig1List.Count == Dig2List.Count
-            int Loop2Count = Dig2ListTempCount;
-            int ResultCount = (Dig1ListTempCount + Dig2ListTempCount) - 1;
-            List<long> ResultList = new List<long>(new long[ResultCount]); // Product (ResultList) can be max Dig1List.Count + Dig2List.Count digit long or 1 less
+            int ResultCount = (Dig1ListCount + Dig2ListCount) - 1;
+            List<long> ResultList = new(new long[ResultCount]); // Product (ResultList) can be max Dig1List.Count + Dig2List.Count digit long or 1 less
 
             for (int i = 0; i < Loop2Count; i++)
             {
-
                 for (int k = 0; k < Loop1Count; k++)
                 {
-
-                    long temp = (Dig2ListTemp[i] * Dig1ListTemp[k]) + ResultList[MyPoss];
-                    if (temp >= MyDiv)
+                    long temp = (Dig2List[i] * Dig1List[k]) + ResultList[MyPoss];
+                    if (temp >= 1000000000)
                     {
-                        tempUp = temp / MyDiv;
-                        temp %= MyDiv;
+                        CalcIntExt.MyModuloLongToLong(temp, 1000000000, out tempUp, out temp);
+
                         if (MyPoss + 1 == ResultCount)
                         { ResultList.Add(tempUp); }
                         else
@@ -2542,37 +2525,37 @@ namespace Miki
 
                 MyPoss = i + 1;
             }
-
             return ResultList;
 
         }
 
 
-
-        public static List<List<long>> Div(List<long> Dig1List, List<long> Dig2List, long MyDiv18, bool CheckDecimal)
+        public static List<List<long>> Div(List<long> Dig1List, List<long> Dig2List)
         {
-
-            List<List<long>> MyOutput = new List<List<long>>();
+            //Best with MySafeMultiplier, long digs, long multiplier
+            List<List<long>> MyOutput = new(2);
             int Dig1ListCount = Dig1List.Count;
             int Dig2ListCount = Dig2List.Count;
+            //int Result = 0;
             if (Dig1ListCount < Dig2ListCount) // fast pass
             {
-                MyOutput.Add(new List<long>() { 0 });
+                MyOutput.Add(new List<long>(1) { 0 });
                 MyOutput.Add(Dig1List);
-                return MyOutput;
+
             }
 
             if (Dig1ListCount == 1 && Dig2ListCount == 1) // sometimes we can simply divide two longs - fast pass
             {
                 if (Dig2List[0] != 0)
                 {
-                    MyOutput.Add(new List<long>() { Dig1List[0] / Dig2List[0] });
-                    MyOutput.Add(new List<long>() { Dig1List[0] % Dig2List[0] });
+                    CalcIntExt.MyModuloLongToLong(Dig1List[0], Dig2List[0], out long Full, out long MyMod);
+                    MyOutput.Add(new List<long>(1) { Full });
+                    MyOutput.Add(new List<long>(1) { MyMod });
                 }
                 else
                 {
-                    MyOutput.Add(new List<long>() { 0 }); //error Div by 0, but I don't care
-                    MyOutput.Add(new List<long>() { 0 });
+                    MyOutput.Add(new List<long>(1) { 0 }); //error Div by 0, but I don't care
+                    MyOutput.Add(new List<long>(1) { 0 });
                     Console.WriteLine("ERROR - Div by 0 - Return: 0");
                 }
                 return MyOutput;
@@ -2586,235 +2569,246 @@ namespace Miki
             int Dig1ListLength;
 
             int BiggerList = 1;
-
-            Dig2ListFirstLength = CalcIntExt.IntLength(Dig2List[Dig2ListCount - 1]); //static
+            long Dig1FirstDig = Dig1List[^1];
+            CalcIntExt.LongLength(Dig2List[^1], out Dig2ListFirstLength); //static
             Dig2ListLength = (Dig2ListCount - 1) * 18 + Dig2ListFirstLength; //static
 
-            Dig1ListFirstLength = CalcIntExt.IntLength(Dig1List[Dig1ListCount - 1]); //must be counted in each loop and it is necessary here
+            CalcIntExt.LongLength(in Dig1FirstDig, out Dig1ListFirstLength); //must be counted in each loop and it is necessary here
             Dig1ListLength = (Dig1ListCount - 1) * 18 + Dig1ListFirstLength; //must be counted in each loop and it is necessary here
 
             if (Dig1ListLength < Dig2ListLength)
             {
-                MyOutput.Add(new List<long>() { 0 });
+                MyOutput.Add(new List<long>(1) { 0 });
                 MyOutput.Add(Dig1List);
                 return MyOutput;
             }
 
             if (Dig1ListLength == Dig2ListLength)
             {
-                BiggerList = CalcCompare.ListBigger(Dig1List, Dig2List);
+                CalcCompare.ListBigger(in Dig1List, in Dig2List, out BiggerList);
 
                 switch (BiggerList)
                 {
                     case 0:
-                        MyOutput.Add(new List<long>() { 1 });
-                        MyOutput.Add(new List<long>() { 0 });
+                        MyOutput.Add(new List<long>(1) { 1 });
+                        MyOutput.Add(new List<long>(1) { 0 });
                         return MyOutput;
                     case 2:
-                        MyOutput.Add(new List<long>() { 0 });
+                        MyOutput.Add(new List<long>(1) { 0 });
                         MyOutput.Add(Dig1List);
                         return MyOutput;
                 }
 
             }
 
-            if (CheckDecimal == true) //sometimes we can simply calculate decimals
+            if (Dig1ListLength < 29 && Dig2ListLength < 29)
             {
+                CalcCompare.GetDecimalFromList(in Dig1List, out decimal DecimalDig1);
+                CalcCompare.GetDecimalFromList(in Dig2List, out decimal DecimalDig2);
 
-                if (Dig1ListLength < 29 && Dig2ListLength < 29)
+                CalcIntExt.MyModuloDecToDec(in DecimalDig1, in DecimalDig2, out decimal FullD, out decimal MyModD);
+
+                List<long> LongResult;
+                if (FullD >= 1000000000000000000)
                 {
-                    decimal DecimalDig1 = CalcCompare.GetDecimalFromList(Dig1List);
-                    decimal DecimalDig2 = CalcCompare.GetDecimalFromList(Dig2List);
-
-                    decimal TempRestDec = DecimalDig1 % DecimalDig2;
-                    decimal DecDecOutput = ((DecimalDig1 - TempRestDec) / DecimalDig2);
-
-                    List<long> LongResult = new List<long>();
-                    if (DecDecOutput >= MyDiv18)
-                    { LongResult = new List<long>() { (long)(DecDecOutput % MyDiv18), (long)(DecDecOutput / MyDiv18) }; }
-                    else
-                    { LongResult = new List<long>() { (long)(DecDecOutput) }; }
-
-                    List<long> LongRest = new List<long>();
-                    if (TempRestDec >= MyDiv18)
-                    { LongRest = new List<long>() { (long)(TempRestDec % MyDiv18), (long)(TempRestDec / MyDiv18) }; }
-                    else
-                    { LongRest = new List<long>() { (long)(TempRestDec) }; }
-
-                    MyOutput.Add(LongResult);
-                    MyOutput.Add(LongRest);
-                    return MyOutput;
+                    CalcIntExt.MyModuloDecToLong(in FullD, 1000000000000000000, out long FullL, out long MyModL);
+                    LongResult = new List<long>(2) { MyModL, FullL };
                 }
+                else
+                { LongResult = new List<long>(1) { (long)(FullD) }; }
 
+                List<long> LongRest;
+                if (MyModD >= 1000000000000000000)
+                {
+                    CalcIntExt.MyModuloDecToLong(in FullD, 1000000000000000000, out long FullL, out long MyModL);
+                    LongRest = new List<long>(2) { MyModL, FullL };
+                }
+                else
+                { LongRest = new List<long>(1) { (long)(MyModD) }; }
+
+                MyOutput.Add(LongResult);
+                MyOutput.Add(LongRest);
+                return MyOutput;
             }
 
-
-            List<long> TempDig2List18 = new List<long>();
-            List<long> TempDig2List9 = new List<long>();
-            List<long> TempMultiplyList = new List<long>();
-            long First18DigDig1;
+            List<long> TempDig2List18;
             long First17DigDig2;
-            long MyDiv9 = 1000000000;
-
-            List<long> Dig2OrigList9 = CalcConvert.ConvertLists(Dig2List, MyDiv18, MyDiv9); //static, necessary for multiplication
+            CalcConvert.ConvertList18To9(in Dig2List, out List<long> Dig2OrigList9); //static, necessary for multiplication
 
             //prepare number from Dig2 to estimate multiplier, take 17 digits
-            if (Dig2ListLength > 17)
+            CalcCompare.GetLongFromList(in Dig2List, 17, in Dig2ListFirstLength, out First17DigDig2); //static, necessary to find "safe multiplier"
+            if (Dig2ListLength > 17) //if full digit was taken
             {
-                First17DigDig2 = (CalcCompare.GetLongFromList(Dig2List, 16, 18) * 10) + 9; //last digit is uknown, so it can be 9
-            }
-            else
-            {
-                First17DigDig2 = CalcCompare.GetLongFromList(Dig2List, 17, 18); //static, necessary to find "safe multiplier"
+                First17DigDig2 += 1; //only if we cant't get full divisor
             }
 
-
-            List<long> MultiplyList = new List<long>() { 0 };
+            List<long> MultiplyList = new() { 0 };
 
             while (BiggerList < 2) //division by repeated subtraction
             {
-
-                List<long> SafeMultiplierList18 = new List<long>();
-
+                List<long> SafeMultiplierList18;
 
                 if (Dig1ListLength < 29 && Dig2ListLength < 29) //sometimes we can simply calculate on decimals at the end
                 {
-
                     if (Dig1ListLength < 19 && Dig2ListLength < 19) // or on longs
                     {
                         long LongDig1 = Dig1List[0];
                         long LongDig2 = Dig2List[0];
+                        long LongOutput = LongDig1 / LongDig2;
+                        long LongTempDig2 = LongOutput * LongDig2;
 
-                        long TempRestLong = LongDig1 % LongDig2;
-                        long LongOutput = ((LongDig1 - TempRestLong) / LongDig2); //SafeMultiplierList18
-
-                        long LongTempDig2 = LongOutput * LongDig2; // TempDig2List18
-
-                        SafeMultiplierList18 = new List<long>() { LongOutput };
-                        TempDig2List18 = new List<long>() { LongTempDig2 };
+                        SafeMultiplierList18 = new List<long>(1) { LongOutput };
+                        TempDig2List18 = new List<long>(1) { LongTempDig2 };
                     }
                     else
                     {
-                        decimal DecimalDig1 = CalcCompare.GetDecimalFromList(Dig1List);
-                        decimal DecimalDig2 = CalcCompare.GetDecimalFromList(Dig2List);
-
-                        decimal TempRestDec = DecimalDig1 % DecimalDig2;
-                        decimal DecDecOutput = ((DecimalDig1 - TempRestDec) / DecimalDig2); //SafeMultiplierList18
-
-                        if (DecDecOutput >= MyDiv18) //SafeMultiplierList18
-                        { SafeMultiplierList18 = new List<long>() { (long)(DecDecOutput % MyDiv18), (long)(DecDecOutput / MyDiv18) }; }
+                        CalcCompare.GetDecimalFromList(in Dig1List, out decimal DecimalDig1);
+                        CalcCompare.GetDecimalFromList(in Dig2List, out decimal DecimalDig2);
+                        decimal DecDecOutput = decimal.Truncate((DecimalDig1 / DecimalDig2));
+                        if (DecDecOutput >= 1000000000000000000)
+                        {
+                            CalcIntExt.MyModuloDecToLong(in DecDecOutput, 1000000000000000000, out long Full, out long MyMod);
+                            SafeMultiplierList18 = new List<long>(2) { MyMod, Full };
+                        }
                         else
-                        { SafeMultiplierList18 = new List<long>() { (long)(DecDecOutput) }; }
+                        { SafeMultiplierList18 = new List<long>(1) { (long)(DecDecOutput) }; }
 
-                        decimal DecTempDig2 = DecDecOutput * DecimalDig2; // TempDig2List18
-                        if (DecTempDig2 >= MyDiv18)
-                        { TempDig2List18 = new List<long>() { (long)(DecTempDig2 % MyDiv18), (long)(DecTempDig2 / MyDiv18) }; }
+                        decimal DecTempDig2 = DecDecOutput * DecimalDig2;
+                        if (DecTempDig2 >= 1000000000000000000)
+                        {
+                            CalcIntExt.MyModuloDecToLong(in DecTempDig2, 1000000000000000000, out long Full, out long MyMod);
+                            TempDig2List18 = new List<long>(2) { MyMod, Full };
+                        }
                         else
-                        { TempDig2List18 = new List<long>() { (long)(DecTempDig2) }; }
+                        { TempDig2List18 = new List<long>(1) { (long)(DecTempDig2) }; }
 
                     }
                 }
                 else //but if numbers are bigger then decimal
                 {
-                    //here will be numbers longer then 18 digits, only
-                    First18DigDig1 = CalcCompare.GetLongFromList(Dig1List, 17, 18); //so we take 17 digits... must be counted in each loop
-
-                    { First18DigDig1 *= 10; } //and multiply by 10 because next digit is uknown, so it can be 0
-
-                    long SafeMultiplier = First18DigDig1 / First17DigDig2; //it is max 18 digits
-
-                    if (Dig2ListLength == Dig1ListLength) // This is necessary.
-                    {
-                        SafeMultiplier /= 10;
-                        if (SafeMultiplier == 0) { SafeMultiplier = 1; }
-                    }
-
-                    SafeMultiplierList18 = new List<long>() { SafeMultiplier };
-
-
-                    List<long> SafeMultiplierList9 = new List<long>();
-                    if (SafeMultiplier >= MyDiv9) //faster
-                    { SafeMultiplierList9 = new List<long>() { SafeMultiplier % MyDiv9, SafeMultiplier / MyDiv9 }; }
-                    else
-                    { SafeMultiplierList9 = new List<long>() { SafeMultiplier }; }
-
-                    TempDig2List9 = (CalcLists.Mul(Dig2OrigList9, SafeMultiplierList9, MyDiv9));
-
-                    TempDig2List18 = (CalcConvert.ConvertLists(TempDig2List9, MyDiv9, MyDiv18));
-
-                    //int TempDig2ListFirstLength = CalcIntExt.IntLength(TempDig2List18[^1]); //must be counted in each loop
-                    int TempDig2List9Count = TempDig2List9.Count;
-                    int TempDig2ListLength = (TempDig2List9Count - 1) * 9 + CalcIntExt.IntLength(TempDig2List9[TempDig2List9Count - 1]); //must be counted in each loop
-
-                    int ZerosToAdd = Dig1ListLength - TempDig2ListLength;
-
-                    if (ZerosToAdd > 0) //if 0 then we multiply by 1
-                    {
-                        long FirstTempDig2List = CalcCompare.GetLongFromList(TempDig2List18, 1, 18);
-                        long FirstDig1List = CalcCompare.GetLongFromList(Dig1List, 1, 18);
-
-                        if (FirstDig1List - FirstTempDig2List < 0)
-                        { ZerosToAdd -= 1; }
-
-                        //Console.WriteLine(Dig1ListLength + "      " + TempDig2ListLength);
-                        int ZerosD = (ZerosToAdd) / 9;
-                        int ZerosU = (ZerosToAdd) % 9;
-                        //Console.WriteLine(ZerosD + "      " + ZerosU);
-                        List<long> MultiplyBy10List = new List<long>();
-
-                        for (int t = 0; t < ZerosD; t++)
-                        { MultiplyBy10List.Add(0); }
-                        MultiplyBy10List.Add((long)Math.Pow(10, ZerosU));
-
-                        TempDig2List9 = (CalcLists.Mul(TempDig2List9, MultiplyBy10List, MyDiv9));
-                        SafeMultiplierList9 = (CalcLists.Mul(SafeMultiplierList9, MultiplyBy10List, MyDiv9));
-                    }
-
-                    TempDig2List18 = (CalcConvert.ConvertLists(TempDig2List9, MyDiv9, MyDiv18));
-                    SafeMultiplierList18 = (CalcConvert.ConvertLists(SafeMultiplierList9, MyDiv9, MyDiv18));
-
+                    MySafeMultiplier(in Dig1List, in Dig1FirstDig, in Dig2OrigList9, in First17DigDig2, in Dig1ListLength, in Dig1ListFirstLength, in Dig2ListLength, out List<List<long>> MySafeMultiplierResult);
+                    TempDig2List18 = MySafeMultiplierResult[0];
+                    SafeMultiplierList18 = MySafeMultiplierResult[1];
                 }
 
-
-
-                Dig1List = CalcLists.Sub(Dig1List, TempDig2List18, MyDiv18);
-                MultiplyList = (CalcLists.Add(MultiplyList, SafeMultiplierList18, MyDiv18));
-
+                Dig1List = CalcLists.Sub(Dig1List, TempDig2List18);
+                MultiplyList = (CalcLists.Add(MultiplyList, SafeMultiplierList18)); ;
                 //And we must check if we can break calculation. Checking is "time waster", it's the best place for it
-                BiggerList = CalcCompare.ListBigger(Dig1List, Dig2List);
+                CalcCompare.ListBigger(in Dig1List, in Dig2List, out BiggerList);
 
                 if (BiggerList == 2)
                 { break; }
-                int ThisDig2ListCount = Dig1List.Count;
-                Dig1ListFirstLength = CalcIntExt.IntLength(Dig1List[ThisDig2ListCount - 1]); //must be counted in each loop
-                Dig1ListLength = (ThisDig2ListCount - 1) * 18 + Dig1ListFirstLength; //must be counted in each loop
+                Dig1FirstDig = Dig1List[^1];
+                CalcIntExt.LongLength(in Dig1FirstDig, out Dig1ListFirstLength); //must be counted in each loop
+                Dig1ListLength = (Dig1List.Count - 1) * 18 + Dig1ListFirstLength; //must be counted in each loop
 
             }
 
-
-            MyOutput.Add(MultiplyList);
-            MyOutput.Add(Dig1List);
-
+            MyOutput = new(2) { MultiplyList, Dig1List };
             return MyOutput;
         }
 
+        public static void MySafeMultiplier(in List<long> Dig1List18, in long Dig1FirstDig, in List<long> Dig2List9, in long First17DigDig2, in int Dig1ListLength, in int Dig1List18FirstLength, in int Dig2ListLength, out List<List<long>> MyOutput)
+        {
+            List<long> TempDig2List18;
+            List<long> TempDig2List9;
+            long SafeMultiplier;
+            long First18DigDig1;
+            List<long> SafeMultiplierList9;
+
+            CalcCompare.GetLongFromList(in Dig1List18, 18, in Dig1List18FirstLength, out First18DigDig1);
+
+            if (Dig1ListLength > 18)
+            {
+                First18DigDig1 -= 1; //Only if we cant't get full divident
+            }
+
+            SafeMultiplier = First18DigDig1 / First17DigDig2;
+
+            while (true)
+            {
+                if (Dig2ListLength == Dig1ListLength) // This is necessary.
+                {
+                    SafeMultiplier /= 10;
+                    if (SafeMultiplier == 0) { SafeMultiplierList9 = new(1) { 1 }; break; }
+                    { SafeMultiplierList9 = new(1) { SafeMultiplier }; break; }
+
+                }
+
+                if (SafeMultiplier >= 1000000000) //faster
+                {
+                    CalcIntExt.MyModuloLongToLong(SafeMultiplier, 1000000000, out long Full, out long MyMod);
+                    SafeMultiplierList9 = new(2) { MyMod, Full }; break;
+                }
+                else
+                { SafeMultiplierList9 = new(1) { SafeMultiplier }; break; }
+            }
+
+            TempDig2List9 = (CalcLists.Mul(Dig2List9, SafeMultiplierList9));
+            CalcIntExt.LongLength(TempDig2List9[^1], out int LenToAdd);
+            int TempDig2ListLength = (TempDig2List9.Count - 1) * 9 + LenToAdd; //must be counted in each loop
+
+            int ZerosToAdd = Dig1ListLength - TempDig2ListLength;
 
 
+            if (ZerosToAdd > 0) //if 0 then we multiply by 1
+            {
+
+                long Temp2DigFirst = TempDig2List9[^1];
+                CalcIntExt.LongLength(in Temp2DigFirst, out int TempDig2List9First);
+                CalcCompare.GetLongDigFromDig(in Temp2DigFirst, 1, in TempDig2List9First, out long FirstTempDig2List);
+                CalcCompare.GetLongDigFromDig(in Dig1FirstDig, 1, in Dig1List18FirstLength, out long FirstDig1List);
+
+                if (FirstDig1List - FirstTempDig2List < 0)
+                { ZerosToAdd -= 1; }
+
+                CalcIntExt.MyModuloIntToInt(in ZerosToAdd, 9, out int ZerosD, out int ZerosU);
+                CalcIntExt.LongPower(10, in ZerosU, out long Result);
+                List<long> MultiplyBy10List = new(1) { Result };
+
+                List<long> TempDig2List9Temp = CalcLists.Mul(TempDig2List9, MultiplyBy10List);
+                List<long> SafeMultiplierList9Temp = CalcLists.Mul(SafeMultiplierList9, MultiplyBy10List);
+
+                TempDig2List9 = new(TempDig2List9Temp.Count + ZerosD);
+                SafeMultiplierList9 = new(SafeMultiplierList9Temp.Count + ZerosD);
+
+                if (ZerosD > 0)
+                {
+
+                    List<long> ZerosAddList = new(ZerosD); ;
+                    for (int t = 0; t < ZerosD; t++)
+                    {
+                        ZerosAddList.Add(0);
+                    }
+                    TempDig2List9.AddRange(ZerosAddList);
+                    TempDig2List9.AddRange(TempDig2List9Temp);
+                    SafeMultiplierList9.AddRange(ZerosAddList);
+                    SafeMultiplierList9.AddRange(SafeMultiplierList9Temp);
+                }
+                else
+                {
+                    TempDig2List9.AddRange(TempDig2List9Temp);
+                    SafeMultiplierList9.AddRange(SafeMultiplierList9Temp);
+                }
+            }
+
+            CalcConvert.ConvertList9To18(in TempDig2List9, out TempDig2List18);
+            CalcConvert.ConvertList9To18(in SafeMultiplierList9, out List<long> SafeMultiplierList18);
+
+            MyOutput = new(2) { TempDig2List18, SafeMultiplierList18 };
+        }
         public static List<long> Pow(List<long> Dig1List, List<long> Dig2List)
         {
 
-            List<long> MyPowerList = new List<long>() { 1 };
-            List<long> MyPowerListAdd = new List<long>() { 1 };
-
-            long MyDivM = 1000000000;
-            long MyDivA = 1000000000000000000;
+            List<long> MyPowerList = new(1) { 1 };
+            List<long> MyPowerListAdd = new(1) { 1 };
 
             //You can write condition to calculate power with proper result sign
             //or remember, if -Dig1Orig and Dig2Orig % 2 != 0 ResultSign = "-"
             int Dig2ListCount = Dig2List.Count;
             if (Dig2ListCount == 1 && Dig2List[0] == 0)
             {
-                List<long> MyOutput1 = new List<long>() { 1 };
+                List<long> MyOutput1 = new(1) { 1 };
                 return MyOutput1;
             }
 
@@ -2825,24 +2819,24 @@ namespace Miki
 
 
             List<long> MyOutputList = Dig1List;
-
-            while (CalcCompare.ListBigger(MyPowerList, Dig2List) == 2)
+            int Result;
+            CalcCompare.ListBigger(in MyPowerList, in Dig2List, out Result);
+            while (Result == 2)
             {
-                MyOutputList = CalcLists.Mul(MyOutputList, Dig1List, MyDivM);
-                MyPowerList = CalcLists.Add(MyPowerList, MyPowerListAdd, MyDivA);
+                MyOutputList = CalcLists.Mul(MyOutputList, Dig1List);
+                MyPowerList = CalcLists.Add(MyPowerList, MyPowerListAdd);
+                CalcCompare.ListBigger(in MyPowerList, in Dig2List, out Result);
             }
-
             return MyOutputList;
 
         }
-
     }
     public class CalcStrings
     {
         public static List<string> Add(string Dig1Orig, string Dig2Orig)
         {
 
-            List<string> MyOutput = new List<string>() { "", "" };
+            List<string> MyOutput = new(2);
 
             string ResultSign = "";
             string Dig1Sign = "";
@@ -2850,77 +2844,76 @@ namespace Miki
             string Dig1 = Dig1Orig;
             string Dig2 = Dig2Orig;
 
-            if (Dig1Orig.Substring(0, 1) == "-")
+            if (Dig1Orig[..1] == "-")
             {
                 Dig1Sign = "-";
-                Dig1 = Dig1Orig.Substring(1); //[1..]
+                Dig1 = Dig1Orig[1..];
             }
-            if (Dig2Orig.Substring(0, 1) == "-")
+            if (Dig2Orig[..1] == "-")
             {
                 Dig2Sign = "-";
-                Dig2 = Dig2Orig.Substring(1);
+                Dig2 = Dig2Orig[1..];
             }
 
             if (Dig1 == "0")
             {
-                MyOutput[0] = Dig2Orig;
-                MyOutput[1] = Dig2;
+                MyOutput.Add(Dig2Orig);
+                MyOutput.Add(Dig2);
                 return MyOutput;
             }
 
             if (Dig2 == "0")
             {
-                MyOutput[0] = Dig1Orig;
-                MyOutput[1] = Dig1;
+                MyOutput.Add(Dig1Orig);
+                MyOutput.Add(Dig1);
                 return MyOutput;
             }
 
             if (Dig1.Length < 29 && Dig2.Length < 29)
             {
                 decimal IntOutput = Convert.ToDecimal(Dig1Orig) + Convert.ToDecimal(Dig2Orig);
-                MyOutput[0] = Convert.ToString(IntOutput);
-                MyOutput[1] = Convert.ToString(Math.Abs(IntOutput));
+                MyOutput.Add(Convert.ToString(IntOutput));
+                MyOutput.Add(Convert.ToString(Math.Abs(IntOutput)));
                 return MyOutput;
             }
 
-            if (Dig1Sign == "-" && Dig2Sign == "-")
-            { ResultSign = "-"; }
-
-            List<List<long>> DigsLists = CalcConvert.StringsToLongLists(Dig1, Dig2, 18);
+            CalcConvert.StringsToLongLists(in Dig1, in Dig2, 18, out List<List<long>> DigsLists);
 
             List<long> Dig1List = DigsLists[0];
             List<long> Dig2List = DigsLists[1];
-
-            long MyDiv = 1000000000000000000;
-
-            int DigBiggerTemp = CalcCompare.ListBigger(Dig1List, Dig2List);
+            CalcCompare.ListBigger(in Dig1List, in Dig2List, out int DigBiggerTemp);
+            string TempResult;
 
             if (Dig1Sign == "-" && Dig2Sign != "-")
             {
-                MyOutput[1] = CalcConvert.LongListToString(CalcLists.Sub(Dig1List, Dig2List, MyDiv), "000000000000000000");
                 if (DigBiggerTemp == 1)
                 { ResultSign = "-"; }
-                MyOutput[0] = ResultSign + MyOutput[1];
+                CalcConvert.LongListToString(CalcLists.Sub(Dig1List, Dig2List), "000000000000000000", out TempResult);
+                MyOutput.Add(ResultSign + TempResult);
+                MyOutput.Add(TempResult);
                 return MyOutput;
             }
 
             if (Dig1Sign != "-" && Dig2Sign == "-")
             {
-                MyOutput[1] = CalcConvert.LongListToString(CalcLists.Sub(Dig1List, Dig2List, MyDiv), "000000000000000000");
                 if (DigBiggerTemp == 2)
                 { ResultSign = "-"; }
-                MyOutput[0] = ResultSign + MyOutput[1];
+                CalcConvert.LongListToString(CalcLists.Sub(Dig1List, Dig2List), "000000000000000000", out TempResult);
+                MyOutput.Add(ResultSign + TempResult);
+                MyOutput.Add(TempResult);
                 return MyOutput;
             }
+            CalcConvert.LongListToString(CalcLists.Add(Dig1List, Dig2List), "000000000000000000", out TempResult);
 
-            MyOutput[1] = CalcConvert.LongListToString(CalcLists.Add(Dig1List, Dig2List, MyDiv), "000000000000000000");
-
-            if (MyOutput[1] == "")
+            if (TempResult == "")
             {
-                MyOutput[1] = "0";
+                TempResult = "0";
             }
 
-            MyOutput[0] = ResultSign + MyOutput[1];
+            if (Dig1Sign == "-" && Dig2Sign == "-")
+            { ResultSign = "-"; }
+
+            MyOutput.Add(ResultSign + TempResult);
 
             return MyOutput;
         }
@@ -2928,75 +2921,75 @@ namespace Miki
         public static List<string> Sub(string Dig1Orig, string Dig2Orig)
         {
 
-            List<string> MyOutput = new List<string>() { "", "", "" };
+            List<string> MyOutput = new(3);
             string ResultSign = "";
             string Dig1Sign = "";
             string Dig2Sign = "";
             string Dig1 = Dig1Orig;
             string Dig2 = Dig2Orig;
 
-            if (Dig1.Substring(0, 1) == "-")
+            if (Dig1[..1] == "-")
             {
                 Dig1Sign = "-";
-                Dig1 = Dig1Orig.Substring(1);
+                Dig1 = Dig1Orig[1..];
             }
-            if (Dig2.Substring(0, 1) == "-")
+            if (Dig2[..1] == "-")
             {
                 Dig2Sign = "-";
-                Dig2 = Dig2Orig.Substring(1);
+                Dig2 = Dig2Orig[1..];
             }
 
             if (Dig1 == "0")
             {
                 if (Dig2Sign == "-")
                 {
-                    MyOutput[0] = Dig2;
-                    MyOutput[1] = Dig2;
+                    MyOutput.Add(Dig2);
+                    MyOutput.Add(Dig2);
                 }
                 else
                 {
-                    MyOutput[0] = "-" + Dig2;
-                    MyOutput[1] = Dig2;
+                    MyOutput.Add("-" + Dig2);
+                    MyOutput.Add(Dig2);
                 }
                 return MyOutput;
             }
 
             if (Dig2 == "0")
             {
-                MyOutput[0] = Dig1Orig;
-                MyOutput[1] = Dig1;
+                MyOutput.Add(Dig1Orig);
+                MyOutput.Add(Dig1);
                 return MyOutput;
             }
 
             if (Dig1.Length < 29 && Dig2.Length < 29)
             {
                 decimal IntOutput = Convert.ToDecimal(Dig1Orig) - Convert.ToDecimal(Dig2Orig);
-                MyOutput[0] = Convert.ToString(IntOutput);
-                MyOutput[1] = Convert.ToString(Math.Abs(IntOutput));
+                MyOutput.Add(Convert.ToString(IntOutput));
+                MyOutput.Add(Convert.ToString(Math.Abs(IntOutput)));
                 return MyOutput;
             }
-
-            List<List<long>> DigsLists = CalcConvert.StringsToLongLists(Dig1, Dig2, 18);
+            CalcConvert.StringsToLongLists(in Dig1, in Dig2, 18, out List<List<long>> DigsLists);
 
             List<long> Dig1List = DigsLists[0];
             List<long> Dig2List = DigsLists[1];
-            long MyDiv = 1000000000000000000;
-
-            int DigBiggerTemp = CalcCompare.ListBigger(Dig1List, Dig2List);
+            string TempOutput;
+            CalcCompare.ListBigger(in Dig1List, in Dig2List, out int DigBiggerTemp);
 
             if (Dig1Sign == "-" && Dig2Sign != "-")
             {
-                MyOutput[1] = CalcConvert.LongListToString(CalcLists.Add(Dig1List, Dig2List, MyDiv), "000000000000000000");
+                CalcConvert.LongListToString(CalcLists.Add(Dig1List, Dig2List), "000000000000000000", out TempOutput);
                 ResultSign = "-";
-                MyOutput[0] = ResultSign + MyOutput[1];
+                MyOutput.Add(ResultSign + TempOutput);
+                MyOutput.Add(TempOutput);
                 return MyOutput;
             }
 
             if (Dig1Sign != "-" && Dig2Sign == "-")
             {
-                MyOutput[1] = CalcConvert.LongListToString(CalcLists.Add(Dig1List, Dig2List, MyDiv), "000000000000000000");
+                CalcConvert.LongListToString(CalcLists.Add(Dig1List, Dig2List), "000000000000000000", out TempOutput);
                 ResultSign = "";
-                MyOutput[0] = ResultSign + MyOutput[1];
+                MyOutput.Add(ResultSign + TempOutput);
+                MyOutput.Add(TempOutput);
                 return MyOutput;
             }
 
@@ -3011,13 +3004,13 @@ namespace Miki
                 if (DigBiggerTemp == 1)
                 { ResultSign = "-"; }
             }
+            CalcConvert.LongListToString(CalcLists.Sub(Dig1List, Dig2List), "000000000000000000", out TempOutput);
 
-            MyOutput[1] = CalcConvert.LongListToString(CalcLists.Sub(Dig1List, Dig2List, MyDiv), "000000000000000000");
+            if (TempOutput == "")
+            { TempOutput = "0"; }
 
-            if (MyOutput[1] == "")
-            { MyOutput[1] = "0"; }
-
-            MyOutput[0] = ResultSign + MyOutput[1];
+            MyOutput.Add(ResultSign + TempOutput);
+            MyOutput.Add(TempOutput);
 
             return MyOutput;
         }
@@ -3025,36 +3018,36 @@ namespace Miki
         public static List<string> Mul(string Dig1Orig, string Dig2Orig)
         {
 
-            List<string> MyOutput = new List<string>() { "", "", "" };
+            List<string> MyOutput = new(3);
             string ResultSign = "";
             string Dig1Sign = "";
             string Dig2Sign = "";
             string Dig1 = Dig1Orig;
             string Dig2 = Dig2Orig;
 
-            if (Dig1.Substring(0, 1) == "-")
+            if (Dig1[..1] == "-")
             {
                 Dig1Sign = "-";
-                Dig1 = Dig1Orig.Substring(1);
+                Dig1 = Dig1Orig[1..];
             }
-            if (Dig2.Substring(0, 1) == "-")
+            if (Dig2[..1] == "-")
             {
                 Dig2Sign = "-";
-                Dig2 = Dig2Orig.Substring(1);
+                Dig2 = Dig2Orig[1..];
             }
 
             if (Dig2 == "0" || Dig2 == "0")
             {
-                MyOutput[0] = "0";
-                MyOutput[1] = "0";
+                MyOutput.Add("0");
+                MyOutput.Add("0");
                 return MyOutput;
             }
 
             if (Dig1.Length + Dig2.Length < 29)
             {
                 decimal IntOutput = Convert.ToDecimal(Dig1Orig) * Convert.ToDecimal(Dig2Orig);
-                MyOutput[0] = Convert.ToString(IntOutput);
-                MyOutput[1] = Convert.ToString(Math.Abs(IntOutput));
+                MyOutput.Add(Convert.ToString(IntOutput));
+                MyOutput.Add(Convert.ToString(Math.Abs(IntOutput)));
                 return MyOutput;
             }
 
@@ -3062,22 +3055,18 @@ namespace Miki
             {
                 ResultSign = "-";
             }
-
-            List<List<long>> DigsLists = CalcConvert.StringsToLongLists(Dig1, Dig2, 9);
+            CalcConvert.StringsToLongLists(in Dig1, in Dig2, 9, out List<List<long>> DigsLists);
 
             List<long> Dig1List = DigsLists[0];
             List<long> Dig2List = DigsLists[1];
+            CalcConvert.LongListToString(CalcLists.Mul(Dig1List, Dig2List), "000000000", out string TempOutput);
 
-            long MyDiv = 1000000000;
-
-            MyOutput[1] = CalcConvert.LongListToString(CalcLists.Mul(Dig1List, Dig2List, MyDiv), "000000000");
-
-            if (MyOutput[1] == "")
+            if (TempOutput == "")
             {
-                MyOutput[1] = "0";
+                TempOutput = "0";
             }
 
-            MyOutput[0] = ResultSign + MyOutput[1];
+            MyOutput.Add(ResultSign + TempOutput);
 
             return MyOutput;
         }
@@ -3086,51 +3075,33 @@ namespace Miki
         {
             string Dig1 = Dig1Orig;
             string Dig2 = Dig2Orig;
-            string Dig1Sign = "";
-            string Dig2Sign = "";
 
-            List<string> MyOutput = new List<string>() { Dig1, "", "" };
-            List<long> MyPowerList = new List<long>() { 1 };
-            List<long> MyPowerListAdd = new List<long>() { 1 };
-
-            if (Dig1Orig.Substring(0, 1) == "-")
-            {
-                Dig1Sign = "-";
-                Dig1 = Dig1Orig.Substring(1);
-            }
-            if (Dig2Orig.Substring(0, 1) == "-")
-            {
-                Dig2Sign = "-";
-                Dig2 = Dig2Orig.Substring(1);
-            }
-
-            //You can write condition to calculate power with proper result sign
-            //or remember, if -Dig1Orig and Dig2Orig % 2 != 0 ResultSign = "-"
+            List<string> MyOutput = new(3);
 
             if (Dig2 == "0")
             {
-                MyOutput[0] = "1";
+                MyOutput.Add("1");
                 return MyOutput;
             }
 
             if (Dig2 == "1")
             {
-                MyOutput[0] = Dig1Orig;
+                MyOutput.Add(Dig1Orig);
                 return MyOutput;
             }
+            CalcConvert.StringToLongList(in Dig1, 9, out List<long> Dig1List);
+            CalcConvert.StringToLongList(in Dig2, 18, out List<long> Dig2List);
+            List<long> MyOutputList = CalcLists.Pow(Dig1List, Dig2List);
 
-            List<long> Dig1List = CalcConvert.StringToLongList(Dig1, 9);
-            List<long> Dig2List = CalcConvert.StringToLongList(Dig2, 18);
-            List<long> MyOutputList = CalcLists.Pow(Dig1List, Dig2List); // Dig1List;
-
-            MyOutput[0] = CalcConvert.LongListToString(MyOutputList, "000000000");
+            CalcConvert.LongListToString(in MyOutputList, "000000000", out string Output);
+            MyOutput.Add(Output);
             return MyOutput;
         }
 
         public static List<string> Div(string Dig1Orig, string Dig2Orig)
         {
             //most difficult part of job
-            List<string> MyOutput = new List<string>() { "", "", "" };
+            List<string> MyOutput = new(3);
             string ResultSign = "";
             string Dig1Sign = "";
             string Dig2Sign = "";
@@ -3139,21 +3110,21 @@ namespace Miki
             int Dig1Length = Dig1.Length;
             int Dig2Length = Dig2.Length;
 
-            if (Dig1.Substring(0, 1) == "-")
+            if (Dig1[..1] == "-")
             {
                 Dig1Sign = "-";
-                Dig1 = Dig1Orig.Substring(1);
+                Dig1 = Dig1Orig[1..];
             }
-            if (Dig2.Substring(0, 1) == "-")
+            if (Dig2[..1] == "-")
             {
                 Dig2Sign = "-";
-                Dig2 = Dig2Orig.Substring(1);
+                Dig2 = Dig2Orig[1..];
             }
 
             if (Dig2 == "0")
             {
-                MyOutput[0] = "ERROR Div by 0";
-                MyOutput[1] = "ERROR Div by 0";
+                MyOutput.Add("ERROR Div by 0");
+                MyOutput.Add("ERROR Div by 0");
                 return MyOutput;
             }
 
@@ -3164,22 +3135,22 @@ namespace Miki
 
             if (Dig1Length < Dig2Length)
             {
-                MyOutput[0] = "0";
-                MyOutput[1] = Dig2Sign + Dig1;
+                MyOutput.Add("0");
+                MyOutput.Add(Dig2Sign + Dig1);
                 return MyOutput;
             }
 
             if (Dig2 == "1")
             {
-                MyOutput[0] = ResultSign + Dig1;
-                MyOutput[1] = "0";
+                MyOutput.Add(ResultSign + Dig1);
+                MyOutput.Add("0");
                 return MyOutput;
             }
 
             if (Dig1 == "0")
             {
-                MyOutput[0] = "0";
-                MyOutput[1] = "0";
+                MyOutput.Add("0");
+                MyOutput.Add("0");
                 return MyOutput;
             }
 
@@ -3187,35 +3158,31 @@ namespace Miki
             {
                 decimal Dig1Dec = Convert.ToDecimal(Dig1Orig);
                 decimal Dig2Dec = Convert.ToDecimal(Dig2Orig);
-                decimal TempRestDec = Dig1Dec % Dig2Dec;
-                decimal DecDecOutput = ((Dig1Dec - TempRestDec) / Dig2Dec);
-                MyOutput[0] = Convert.ToString(DecDecOutput);
-                MyOutput[1] = Convert.ToString(TempRestDec);
+                CalcIntExt.MyModuloDecToDec(in Dig1Dec, in Dig2Dec, out decimal DecDecOutput, out decimal TempRestDec);
+                MyOutput.Add(Convert.ToString(DecDecOutput));
+                MyOutput.Add(Convert.ToString(TempRestDec));
                 return MyOutput;
             }
 
-
-            List<List<long>> DigsList = CalcConvert.StringsToLongLists(Dig1, Dig2, 18);
-
+            CalcConvert.StringsToLongLists(in Dig1, in Dig2, 18, out List<List<long>> DigsList);
             List<long> Dig1List = DigsList[0];
             List<long> Dig2List = DigsList[1];
-
-            int BiggerList = CalcCompare.ListBigger(Dig1List, Dig2List);
+            CalcCompare.ListBigger(in Dig1List, in Dig2List, out int BiggerList);
 
             if (Dig1Length == Dig2Length)
             {
 
                 if (BiggerList == 2)
                 {
-                    MyOutput[0] = "0";
-                    MyOutput[1] = Dig1Sign + Dig1;
+                    MyOutput.Add("0");
+                    MyOutput.Add(Dig1Sign + Dig1);
                     return MyOutput;
                 }
 
                 if (BiggerList == 0 && Dig1 != "0")
                 {
-                    MyOutput[0] = ResultSign + "1";
-                    MyOutput[1] = "0";
+                    MyOutput.Add(ResultSign + "1");
+                    MyOutput.Add("0");
                     return MyOutput;
                 }
 
@@ -3224,34 +3191,25 @@ namespace Miki
 
             if (Dig1Length >= Dig2Length)
             {
-                //long MyDiv = 1000000000;
-                long MyDiv = 1000000000000000000;
+                List<List<long>> MyResult = CalcLists.Div(Dig1List, Dig2List);
 
-                List<List<long>> MyResult = CalcLists.Div(Dig1List, Dig2List, MyDiv, false);
-
-                string Multiply = CalcConvert.LongListToString(MyResult[0], "000000000000000000"); //Temporary Result(Quotient) //create strings from list after repeated subtractions
-                MyOutput[0] = CalcConvert.LongListToString(MyResult[1], "000000000000000000"); //create strings from list after repeated subtractions (Temporary rest)
-
-                //and change places of results
-                MyOutput[1] = MyOutput[0]; //Rest
-                MyOutput[0] = Multiply; //Quotient
+                CalcConvert.LongListToString(MyResult[0], "000000000000000000", out string Multiply);
+                CalcConvert.LongListToString(MyResult[1], "000000000000000000", out string Rest);
 
                 //last conditions to avoid empty lists
-                if (MyOutput[0] == "") { MyOutput[0] = "0"; }
-                if (MyOutput[1] == "") { MyOutput[1] = "0"; }
+                if (Multiply == "") { Multiply = "0"; }
+                if (Rest == "") { Rest = "0"; }
 
                 //propably not nedded, but to avoid incomplete subtraction
-                if (MyOutput[1] == Dig2)
+                if (Rest == Dig2)
                 {
-                    MyOutput = CalcStrings.Add(MyOutput[0], "1");
-                    MyOutput[1] = "0";
+                    MyOutput = CalcStrings.Add(Multiply, "1");
+                    Rest = "0";
                 }
 
-
+                MyOutput.Add(ResultSign + Multiply); //Quotient
+                MyOutput.Add(Dig1Sign + Rest); //Rest
                 //add proper sign for quotient and rest (REST NOT MODULO)
-                MyOutput[0] = ResultSign + MyOutput[0];
-                MyOutput[1] = Dig1Sign + MyOutput[1];
-
                 return MyOutput;
             }
 
@@ -3262,21 +3220,22 @@ namespace Miki
 
     class CalcCompare
     {
-        public static int StringBigger(string Dig1Orig, string Dig2Orig)
+
+        public static void StringBigger(in string Dig1Orig, in string Dig2Orig, out int StringBigger)
         {
 
             long DigsDiff = Dig1Orig.Length - Dig2Orig.Length;
 
             if (DigsDiff > 0)
-            { return 1; }
+            { StringBigger = 1; return; }
             if (DigsDiff < 0)
-            { return 2; }
+            { StringBigger = 2; return; }
             if (DigsDiff == 0)
             {
                 if (Dig1Orig == Dig2Orig)
-                { return 0; }
+                { StringBigger = 0; return; }
 
-                List<List<long>> ListTest = CalcConvert.StringsToLongLists(Dig1Orig, Dig2Orig, 18);
+                CalcConvert.StringsToLongLists(in Dig1Orig, in Dig2Orig, 18, out List<List<long>> ListTest);
 
                 List<long> Dig1List = ListTest[0];
                 List<long> Dig2List = ListTest[1];
@@ -3285,125 +3244,126 @@ namespace Miki
                 {
                     if (Dig1List[i] > Dig2List[i])
                     {
-                        return 1;
+                        StringBigger = 1; return;
                     }
                     if (Dig1List[i] < Dig2List[i])
                     {
-                        return 2;
+                        StringBigger = 2; return;
                     }
                 }
 
-                return 0;
+                StringBigger = 0; return;
             }
 
-            return 0;
+            StringBigger = 0; ; return;
         }
 
-        public static int ListBigger(List<long> Dig1List, List<long> Dig2List)
+        public static void ListBigger(in List<long> Dig1List, in List<long> Dig2List, out int BiggerList)
         {
             int Dig1ListCount = Dig1List.Count;
             int Dig2ListCount = Dig2List.Count;
-            long DigsDiff = Dig1ListCount - Dig2ListCount;
+            int DigsDiff = Dig1ListCount - Dig2ListCount;
 
-            if (DigsDiff > 0)
-            { return 1; }
-            if (DigsDiff < 0)
-            { return 2; }
-            if (DigsDiff == 0)
+            switch (DigsDiff)
             {
-                for (int i = Dig1ListCount - 1; i >= 0; i--)
-                {
-                    long Diff = Dig1List[i] - Dig2List[i];
-                    if (Diff > 0)
+                case > 0:
+                    BiggerList = 1;
+                    return;
+                case < 0:
+                    BiggerList = 2;
+                    return;
+                case 0:
+                    for (int i = Dig1ListCount - 1; i >= 0; i--)
                     {
-                        return 1;
+                        long Diff = Dig1List[i] - Dig2List[i];
+                        if (Diff > 0)
+                        {
+                            BiggerList = 1;
+                            return;
+                        }
+                        if (Diff < 0)
+                        {
+                            BiggerList = 2;
+                            return;
+                        }
                     }
-                    if (Diff < 0)
-                    {
-                        return 2;
-                    }
-                }
-                return 0;
+                    BiggerList = 0;
+                    return;
             }
-
-
-            return 0;
 
         }
 
-        public static long GetLongFromList(List<long> DigList, int DigCount, int MyDiv)
+        public static void GetLongFromList(in List<long> DigList, in int DigCount, in int DigListFirstLength, out long LongDig)
         {
-            //long FirstLong = 0; // DigCount max 18
-            long FullLong = 0;
-            long AddLong = 0;
-            int DigListCount = DigList.Count;
-            int DigListFirstLength = CalcIntExt.IntLength(DigList[DigListCount - 1]); //obliczane w każdej pętli //^
 
             if (DigListFirstLength == DigCount)
-            { return DigList[DigListCount - 1]; } //^
+            { LongDig = DigList[^1]; return; }
 
 
             if (DigListFirstLength > DigCount)
-            { return (DigList[DigListCount - 1] / (long)Math.Pow(10, DigListFirstLength - DigCount)); } //^
+            {
+                int Diff = DigListFirstLength - DigCount;
+                CalcIntExt.LongPower(10, in Diff, out long Result);
+                LongDig = (DigList[^1] / Result);
+                return;
+            }
             else
             {
 
                 if (DigList.Count > 1)
                 {
-                    FullLong = (DigList[DigListCount - 1] * (long)Math.Pow(10, (MyDiv - DigListFirstLength))); //^
-                    AddLong = (DigList[DigListCount - 2] / (long)Math.Pow(10, (DigListFirstLength))); //^2
+                    long Result;
+                    int Diff = 18 - DigListFirstLength;
+                    CalcIntExt.LongPower(10, in Diff, out Result);
+                    long FullLong = (DigList[^1] * Result);
+                    CalcIntExt.LongPower(10, in DigListFirstLength, out Result);
+                    long AddLong = (DigList[^2] / Result);
                     FullLong += AddLong;
-                    return (FullLong / (long)Math.Pow(10, MyDiv - DigCount));
+                    Diff = 18 - DigCount;
+                    CalcIntExt.LongPower(10, in Diff, out Result);
+                    LongDig = (FullLong / Result);
+                    return;
                 }
                 else
                 {
-                    return DigList[DigList.Count - 1]; //^
+                    LongDig = DigList[^1];
+                    return;
                 }
 
             }
 
         }
-
-        public static decimal GetDecimalFromList(List<long> DigList)
+        
+        public static void GetLongDigFromDig(in long Dig1, in int DigPosFromUp, in int AllDigLength, out long MyLongDig)
         {
-            decimal FulDec = 0;
-            int DigListCount = DigList.Count;
-            decimal MyDiv = 1000000000000000000;
+            //get one digit from Up Dig1
+            int DigPosRev = (AllDigLength - DigPosFromUp); 
+            CalcIntExt.LongPower(10, in DigPosRev, out long Result);
+            MyLongDig = (Dig1 / Result);
+        }
+        public static void GetDecimalFromList(in List<long> DigList, out decimal MyDecimalDig)
+        {
             if (DigList.Count > 1)
             {
-
-                FulDec = (DigList[DigListCount - 1] * MyDiv); //^1
-                FulDec += DigList[DigListCount - 2]; //^2
-                return FulDec;
+                decimal FulDec = (DigList[^1] * (decimal)1000000000000000000);
+                FulDec += DigList[^2];
+                MyDecimalDig = FulDec;
+                return;
             }
             else
             {
-                return DigList[DigListCount - 1];
+                MyDecimalDig = DigList[^1];
+                return;
             }
         }
     }
 
     public class CalcConvert
     {
-
-        public static long StringToLL(string DigString)
+        public static void StringsToLongLists(in string Dig1Orig, in string Dig2Orig, in int FragLength, out List<List<long>> MyOutput)
         {
+            MyOutput = new(2);
 
-            long DigLL = 0;
-            int DigStringLength = DigString.Length;
-
-            for (int i = 0; i < DigStringLength; i++) //16 900
-            {
-                DigLL = DigLL * 10 + (DigString[i] - '0');
-            }
-
-            return DigLL;
-        }
-        public static List<List<long>> StringsToLongLists(string Dig1Orig, string Dig2Orig, int FragLength)
-        {
-            List<List<long>> MyOutput = new List<List<long>>();
-            List<long> Dig1List = new List<long>();
-            List<long> Dig2List = new List<long>();
             string Dig1;
             string Dig2;
 
@@ -3428,16 +3388,14 @@ namespace Miki
                 Dig2 = Dig2Orig;
             }
 
-
+            List<long> Dig1List = new((Dig1.Length / FragLength) + 1);
+            List<long> Dig2List = new((Dig2.Length / FragLength) + 1);
 
 
             if (CommonLength > FragLength) //cut number string into n-digit int array (from right to left)
             {
-                int ModLength1 = CommonLength % FragLength;
-                int PartCount1 = CommonLength / FragLength;
-
-                int ModLength2 = Dig2Length % FragLength;
-                int PartCount2 = Dig2Length / FragLength;
+                CalcIntExt.MyModuloIntToInt(in CommonLength, in FragLength, out int PartCount1, out int ModLength1);
+                CalcIntExt.MyModuloIntToInt(in Dig2Length, in FragLength, out int PartCount2, out int ModLength2);
 
                 for (int i = PartCount1 - 1; i >= 0; i--)
                 {
@@ -3452,11 +3410,11 @@ namespace Miki
 
                 if (ModLength1 > 0)
                 {
-                    Dig1List.Add(Convert.ToInt64(Dig1.Substring(0, ModLength1))); //get n-digit string to list
+                    Dig1List.Add(Convert.ToInt64(Dig1[..ModLength1])); //get n-digit string to list
                 }
                 if (ModLength2 > 0)
                 {
-                    Dig2List.Add(Convert.ToInt64(Dig2.Substring(0, ModLength2)));
+                    Dig2List.Add(Convert.ToInt64(Dig2[..ModLength2]));
                 }
             }
             else
@@ -3475,23 +3433,19 @@ namespace Miki
                 MyOutput.Add(Dig1List);
                 MyOutput.Add(Dig2List);
             }
-
-            return MyOutput;
         }
 
 
 
 
-        public static List<long> StringToLongList(string Dig1Orig, int FragLength)
+        public static void StringToLongList(in string Dig1Orig, in int FragLength, out List<long> Dig1List)
         {
-            List<long> Dig1List = new List<long>();
-
             int CommonLength = Dig1Orig.Length;
 
+            Dig1List = new((CommonLength / FragLength) + 1);
             if (CommonLength > FragLength) //cut number string into n-digit int array (from right to left)
             {
-                int ModLength = CommonLength % FragLength;
-                int PartCount = CommonLength / FragLength;
+                CalcIntExt.MyModuloIntToInt(in CommonLength, in FragLength, out int PartCount, out int ModLength);
 
                 for (int i = PartCount - 1; i >= 0; i--)
                 {
@@ -3501,30 +3455,24 @@ namespace Miki
 
                 if (ModLength > 0)
                 {
-                    Dig1List.Add(Convert.ToInt64(Dig1Orig.Substring(0, ModLength))); //get n-digit string to list
+                    Dig1List.Add(Convert.ToInt64(Dig1Orig[..ModLength])); //get n-digit string to list
                 }
             }
             else
             {
                 Dig1List.Add(Convert.ToInt64(Dig1Orig)); //if number is smaller then n digit
             }
-
-            return Dig1List;
         }
 
-        public static string LongListToString(List<long> DigList, string StringPlaces)
+        public static void LongListToString(in List<long> DigList, in string StringPlaces, out string MyOutput)
         {
-
-            string MyOutput;
-            List<string> MyOutputList = new List<string>();
-
             int loops = DigList.Count - 1;
+            List<string> MyOutputList = new(loops + 1);
 
             for (int i = loops; i >= 0; i--)
             {
 
-
-                if (i == loops) //(i == DigList.Count - 1)
+                if (i == loops)
                 {
                     MyOutputList.Add(Convert.ToString(DigList[i]));
                 }
@@ -3539,70 +3487,46 @@ namespace Miki
 
             if (MyOutput == "")
             { MyOutput = "0"; }
-            return MyOutput;
         }
 
-        public static List<long> ConvertLists(List<long> DigList, long FromMyDiv, long ToMyDiv)
+        public static void ConvertList18To9(in List<long> DigList, out List<long> MyResult)
         {
-            List<long> MyResult = new List<long>();
+            int ResultCount;
+            ResultCount = DigList.Count * 2;
+
+            MyResult = new(ResultCount);
             int Loops = DigList.Count - 1;
-            if (FromMyDiv > ToMyDiv)
+
+            for (int i = 0; i <= Loops; i++)
             {
-                for (int i = 0; i <= Loops; i++)
-                {
-                    MyResult.Add(DigList[i] % ToMyDiv);
-                    long NextDig = DigList[i] / ToMyDiv;
+                long Full, MyMod;
+                CalcIntExt.MyModuloLongToLong(DigList[i], 1000000000, out Full, out MyMod);
+                MyResult.Add(MyMod);
+                long NextDig = Full;
 
-                    if (NextDig > 0 && i <= Loops)
-                    { MyResult.Add(NextDig); }
+                if (NextDig > 0 && i <= Loops)
+                { MyResult.Add(NextDig); }
 
-                }
-
-
-                if (MyResult.Count == 1)
-                { return MyResult; }
-
-                return MyResult;
             }
-            else if (FromMyDiv < ToMyDiv)
-            {
-                for (int i = 0; i <= Loops; i++)
-                {
-                    MyResult.Add(DigList[i]);
-
-                    if (i < Loops && DigList[i + 1] > 0)
-                    { MyResult[MyResult.Count - 1] += DigList[i + 1] * FromMyDiv; }
-                    i += 1;
-                }
-
-                if (MyResult.Count == 1)
-                { return MyResult; }
-
-                return MyResult;
-            }
-
-            return DigList;
+            return;
         }
 
-        public static List<long> CleanListt(List<long> DigList)
+        public static void ConvertList9To18(in List<long> DigList, out List<long> MyResult)
         {
+            int ResultCount;
+            ResultCount = DigList.Count / 2 + 1;
+            MyResult = new(ResultCount);
+            int Loops = DigList.Count - 1;
 
-
-            if (DigList.Count == 1)
+            for (int i = 0; i <= Loops; i++)
             {
-                return DigList;
+                MyResult.Add(DigList[i]);
+
+                if (i < Loops && DigList[i + 1] > 0)
+                { MyResult[^1] += DigList[i + 1] * 1000000000; }
+                i += 1;
             }
-
-
-            while (DigList[DigList.Count - 1] == 0)
-            {
-                DigList.RemoveAt(DigList.Count - 1);
-                if (DigList.Count == 1)
-                { break; }
-            }
-
-            return DigList;
+            return;
         }
-
     }
 }
