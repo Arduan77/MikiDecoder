@@ -1,9 +1,15 @@
 # MikiDecoder
 Miki Calculator and Pseudo-Random Password Generator for decoding 7z (Qlocker)...
+Calculator for big integer like string-numbers, string-number can have 2 147 483 647 digits. It can be more, but for now enough... ;-)
 For Windows and Linux...
 
 Please, read Readme.txt in each folder.
+Now full configurable, constant or 1-n length password, mask for each possition, generator configuration, dictionary size for different kind of job, a.s.o,
+Contains simple Calculator, Random (with reverse checking) Calculator for checking if program makes good calculations, Generator test (with reverse checking) to check
+if password are generated without errors.
 
+Speed ;-)... now, Release, on i7-9750H CPU @ 2.60GHz, 32 char password, 0-9+A-Z+a-z, constant length without mask:
+about 170k/s
 
 The working principle of the decoder is to convert a decimal number to a password, similar to converting a decimal number to hexadecimal, so:
 0  is 0, and/or 00, and/or 000 a.s.o (depends on PassMinLength and PassMaxLength)
@@ -17,6 +23,8 @@ Always there are two dictionaries, Dictionary.txt and DictionaryNext.txt, the se
 so checking is a continuous process without waiting for a new dictionary.
 
 7z mode - multitasking 7z job, you can set in Config.txt or during decoding with +,-,*,/ keys how many 7z processes MikiDecoder will launch.
+If 7z mode is running, each 7z task in Silent mode works in Fire-and-forget manner, but in Display mode I made something like FIFO, it is a little slower
+but you can see each password in the order of generation.
 
 This pseudo-random generator uses Lehmer algorithm: NextDig = (LastDig + Increment) % TotalIterCount
 but also:
