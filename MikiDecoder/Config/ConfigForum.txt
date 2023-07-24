@@ -1,0 +1,64 @@
+#################### PASSSWORD CONFIGURATION ####################
+# Characters in password
+Characters=12456Bopty¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶¸¹º»¼½¾¿ÀÁÂÃÄ×é
+#Characters=0123
+# Password Min length
+PassMinLength=20
+# Password Max length
+PassMaxLength=20
+# If FillToLength=0 only Base password will be generated, without adding zeros to min / max length
+FillToLength=1
+########## MASK CONFIGRATION ##########
+# Mask config, from back ...?9?8?7?6?5?4?3?2?1, ie: ?1=abcd, ?2=12345, ?####=????????..... each mask in new line
+# If no mask, all characters in Password configuration will be used
+?1=4
+?2=5
+?3=1
+?4=¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶¸¹º»¼½¾¿ÀÁÂÃÄ×é
+?5=¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶¸¹º»¼½¾¿ÀÁÂÃÄ×é
+?6=¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶¸¹º»¼½¾¿ÀÁÂÃÄ×é
+?7=¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶¸¹º»¼½¾¿ÀÁÂÃÄ×é
+?8=¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶¸¹º»¼½¾¿ÀÁÂÃÄ×é
+?9=¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶¸¹º»¼½¾¿ÀÁÂÃÄ×é
+?10=¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶¸¹º»¼½¾¿ÀÁÂÃÄ×é
+?11=¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶¸¹º»¼½¾¿ÀÁÂÃÄ×é
+?12=5
+?13=2
+?14=1
+?15=p
+?16=o
+?17=6
+?18=t
+?19=y
+?20=B
+#################### GENERATOR CONFIGURATION ####################
+# Increment base 3
+IncrementBase=7
+# Increment power 108
+IncrementPower=1
+# Counter display 1 = true, 0 = false (percent while generating pass list, allways dislpay 100%)
+CounterDisplay=0
+#################### CONFIGURATION 7z ####################
+# 7z parameters
+ZipParam=t
+# 7z Processes count
+ProcCount=50
+# 7z Dictionary size
+7zDictSize=1000
+# 7z Speed calculate loop count
+Speed7zLoop=100
+#################### CONFIGURATION HASHCAT ####################
+# Hascat parameters
+HCParam=-m 11600 -w 4 --potfile-disable -a 0
+# HC Dictionary size
+HCDictSize=1000
+#################### CONFIGURATION JOHN THE RIPPER ####################
+# JohnTheRipper parameters
+JTRParam=--format=7z
+# JTR Dictionary size 6048
+JTRDictSize=1000
+#################### CONFIGURATON TEST MODE ####################
+# Test mode with password checking 1 = true, 0 = false
+PassCheck=1
+# Test mode display speed after n loops
+PassLoops=100000
