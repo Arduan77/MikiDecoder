@@ -1,24 +1,27 @@
 #################### PASSSWORD CONFIGURATION ####################
 # Characters in password
 Characters=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxzy0123456789
+#Characters=0123
 # Password Min length
 PassMinLength=32
 # Password Max length
 PassMaxLength=32
+# If FillToLength=0 only Base password will be generated, without adding zeros to min / max length
+FillToLength=1
 ########## MASK CONFIGRATION ##########
-# Use Mask 0 - No, 1 - Yes
-UseMask=0
 # Mask config, from back ...?9?8?7?6?5?4?3?2?1, ie: ?1=abcd, ?2=12345, ?####=????????..... each mask in new line
 # If no mask, all characters in Password configuration will be used
-?1=0
-?32=a
+#?1=012
+#?2=01
+#?3=0
+#?4=0123
+#?5=0
+#?32=a
 #################### GENERATOR CONFIGURATION ####################
-# Increment base
+# Increment base 3
 IncrementBase=3
 # Increment power 108
 IncrementPower=108
-# 0 - Password, 1 - Iteration, 2 - Number (Password -> Number)
-Mode=1
 # Counter display 1 = true, 0 = false (percent while generating pass list, allways dislpay 100%)
 CounterDisplay=0
 #################### CONFIGURATION 7z ####################
