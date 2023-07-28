@@ -1,5 +1,9 @@
 # MikiDecoder
+
 Miki Calculator and Pseudo-Random Password Generator for decoding 7z (Qlocker)...
+
+Full description in MikiDecoder.docx
+
 Calculator for big integer like string-numbers, string-number can have 2 147 483 647 digits. It can be more, but for now enough... ;-)
 For Windows and Linux...
 
@@ -43,7 +47,7 @@ if Increment = 3^1 = 3 then:
 	00006, 0006, 006, 06, 6 - iteration 2
 	99999                   - last total iteration (10^5)-1
 	
-Important!!! to avoid repetitions: TotalIterCount % Increment != 0
+Important!!! to avoid repetitions: TotalIterCount % Increment != 0, Increment must be prime number.
 
 Program ends if last total iteration or last iteration form SessionProgress.txt is done.
 
