@@ -112,20 +112,7 @@ namespace RandomPassword
 
             string ProgressFile = System.IO.Path.Combine(ProgramDir, "Config", "SessionProgress.txt");
 
-            //List<string> ProgressStringList = new();
-
             List<string> ProgressStringList = new List<string>(File.ReadAllLines(ProgressFile));
-
-            /*
-            using (System.IO.StreamReader Pfile = new System.IO.StreamReader(ProgressFile))
-            {
-                string ReadString;
-                while ((ReadString = Pfile.ReadLine()) != null)
-                { ProgressStringList.Add(CalcStringExt.DeSplitString(ReadString)); }
-                Pfile.Dispose();
-                Pfile.Close();
-            }
-            */
 
 
             LehmerGen.Passwords.ProgressIterDoneString = Miki.CalcStringExt.DeSplitString(ProgressStringList[0]);
@@ -141,10 +128,8 @@ namespace RandomPassword
             Miki.CalcConvert.StringToLongList(in LehmerGen.Passwords.ProgressIterToDoString, 18, out LehmerGen.Passwords.ProgressIterToDoList18);
             LehmerGen.Passwords.ProgressIterStartString = LehmerGen.Passwords.ProgressIterToDoString;
             DictionaryFirstIteration = LehmerGen.Passwords.ProgressIterToDoString;
-            //Miki.CalcConvert.StringToLongList(in LehmerGen.Passwords.ProgressIterToDoString, 9, out LehmerGen.Passwords.ProgressIterToDoList9);
 
             LehmerGen.Passwords.InitializeGenerator();
-            //LehmerGen.Passwords.PrepareGeneratorNext(true);
 
             Console.WriteLine("Session restored...");
             Console.WriteLine(string.Format("Iteration to do:   {0}", CalcStringExt.SplitString(LehmerGen.Passwords.ProgressIterToDoString)));
@@ -169,13 +154,11 @@ namespace RandomPassword
                 if (DecoderMode == 2)
                 {
                     Task.Run(() => RunHashcatProgram()).ConfigureAwait(false);
-                    //LehmerGen.Passwords.DictSize = LehmerGen.Passwords.HCDictSize;
                 }
 
                 if (DecoderMode == 3)
                 {
                     Task.Run(() => RunJTRProgram()).ConfigureAwait(false);
-                    //LehmerGen.Passwords.DictSize = LehmerGen.Passwords.JTRDictSize;
                 }
                 if (DecoderMode == 0)
                 {
@@ -232,7 +215,7 @@ namespace RandomPassword
         }
 
         public static void TestCalculation()
-        { 
+        {
             Stopwatch sw = new Stopwatch();
             string Dig1 = "2676543456765432345676543234567652345654321234567875434567890987654321234567876543";
             string Dig2 = "1";
@@ -285,7 +268,7 @@ namespace RandomPassword
             Console.WriteLine("MeanTime: " + MeanTime);
             sumtime = 0;
 
-            
+
         }
         public static void ReadConfig()
         {
@@ -306,7 +289,6 @@ namespace RandomPassword
                             char[] characters = TempString.ToCharArray();
                             Array.Sort(characters);
                             LehmerGen.Passwords.CharactersList = new List<char>(characters);
-                            //LehmerGen.Passwords.PassCharCount = Convert.ToString(LehmerGen.Passwords.CharactersList.Count);
                         }
                         if (ReadString.Contains("PassMinLength="))
                         {
@@ -378,16 +360,16 @@ namespace RandomPassword
                             LehmerGen.Passwords.TestPassLoops = Convert.ToInt32(ReadString.Replace("PassLoops=", "").Trim());
                         }
 
-                            if (ReadString[..1] == "?")
-                            {
-                                int IndexOfEq = ReadString.IndexOf('=');
-                                int MaskNumber = Convert.ToInt32(ReadString[1..IndexOfEq].Trim());
-                                char[] ThisMask = ReadString[(ReadString.IndexOf('=') + 1)..].ToArray();
-                                Array.Sort(ThisMask); //must be, first char is 0, next 1... aso...
-                                //MaskTableTemp.Add(ThisMask.ToList());
-                                LehmerGen.Passwords.MaskTable[MaskNumber - 1] = ThisMask.ToList();
-                            }
-                        
+                        if (ReadString[..1] == "?")
+                        {
+                            int IndexOfEq = ReadString.IndexOf('=');
+                            int MaskNumber = Convert.ToInt32(ReadString[1..IndexOfEq].Trim());
+                            char[] ThisMask = ReadString[(ReadString.IndexOf('=') + 1)..].ToArray();
+                            Array.Sort(ThisMask); //must be, first char is 0, next 1... aso...
+                                                  //MaskTableTemp.Add(ThisMask.ToList());
+                            LehmerGen.Passwords.MaskTable[MaskNumber - 1] = ThisMask.ToList();
+                        }
+
                     }
                 }
                 Cfile.Dispose();
@@ -492,7 +474,6 @@ namespace RandomPassword
 
                         if (KeyPressed == true)
                         {
-                            //Console.WriteLine("Key pressed...");
                             Thread.Sleep(100);
                         }
                         else
@@ -580,14 +561,12 @@ namespace RandomPassword
 
             PassList.Clear();
 
-            //IterAll = Miki.CalcStrings.Add(LehmerGen.Passwords.ProgressIterDoneString, Convert.ToString(DictionarySize))[0]; // not correct
             IterAll = LehmerGen.Passwords.ProgressIterDoneString; //ok
             string IterDoneLocal = Miki.CalcStrings.Sub(IterAll, LehmerGen.Passwords.ProgressIterStartString)[0];
             IterDoneLocal = Miki.CalcStrings.Add(IterDoneLocal, "1")[0];
             Console.WriteLine("");
             Console.WriteLine("New " + DictionaryName + " file is done:      " + System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             Console.WriteLine("");
-            //int i = await CalculateSpeed().ConfigureAwait(true);
             SaveProgress(IterAll, LehmerGen.Passwords.ProgressPoolMaxString, JobKind);
             string String1 = CalcStringExt.SplitString(LehmerGen.Passwords.ProgressPoolMaxString);
             int String1Len = String1.Length;
@@ -601,7 +580,6 @@ namespace RandomPassword
             string String8 = CalcStringExt.SplitString(SessionDictGenPasswords).PadLeft(String1Len);
             string String9 = CalcStringExt.SplitString(DictionaryFirstIteration).PadLeft(String1Len);
 
-            //Console.WriteLine(DateTime.Now.ToString("HH:mm:ss") + "    " + JobKind + " Act/Full: " + MySpeedTemp + " / " + MySpeed + " /m    FalsePos: " + FalsePosCount);
             Console.WriteLine("DICTIONARIES AND SESSION INFO ->");
             Console.WriteLine("Dictionary size:                    " + String6);
             Console.WriteLine("First iteration in current dict.:   " + String9);
@@ -1287,7 +1265,6 @@ namespace RandomPassword
 
         public static void CalculateSpeed(string FullCount, double FullNs, long LapCount, double LapNs)
         {
-            //TimeSpan span = EndTime.Subtract(RandomPassword.StartTime);
             string FullSpeedInterval = Convert.ToString(FullNs);
             try
             {
@@ -1327,7 +1304,7 @@ namespace RandomPassword
 
             string ProgressFile = System.IO.Path.Combine(ProgramDir, "Config", "SessionProgress.txt");
             string ProgressFileBak = System.IO.Path.Combine(ProgramDir, "Config", "SessionProgress.bak.txt");
-            
+
 
             if (JobKind == "7z")
             {
@@ -1350,36 +1327,17 @@ namespace RandomPassword
                 File.Move(ProgressFile, ProgressFileBak);
             }
 
-            List<string> ProgressList = new ();
+            List<string> ProgressList = new();
             ProgressList.Add(CalcStringExt.SplitString(DoneIter));
             ProgressList.Add(CalcStringExt.SplitString(MaxIter));
             for (int i = 0; i < LehmerGen.Passwords.TempRemoved.Count; i++)
             {
                 ProgressList.Add(LehmerGen.Passwords.TempRemoved[i]);
             }
-            string [] ProgressArray = ProgressList.ToArray();
+            string[] ProgressArray = ProgressList.ToArray();
 
             File.WriteAllLines(ProgressFile, ProgressArray, isoLatin1Encoding);
-            /*
-            if (!File.Exists(ProgressFile))
-            {
-                // Create a file to write to.
-                using Stream fs = new FileStream(ProgressFile, FileMode.Create, FileAccess.Write, FileShare.None, 0x1000, FileOptions.WriteThrough);
-                using (StreamWriter shellConfigWriter = new StreamWriter(fs))
-                {
 
-                    shellConfigWriter.WriteLine(CalcStringExt.SplitString(DoneIter));
-                    shellConfigWriter.Write(String.Join(String.Empty, CalcStringExt.SplitString(MaxIter)));
-
-                    
-
-                    shellConfigWriter.Flush();
-                    shellConfigWriter.Dispose();
-                    shellConfigWriter.Close();
-                }
-            }
-            */
-            
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
@@ -1418,9 +1376,7 @@ namespace LehmerGen
     {
         public static List<long> IncrementList18; //Increment list needed for adding
         public static List<long> IncrementList9; //Increment list needed for multiplication
-        //public static List<long> TotalBasePassCountList; //Total passwords count list
         public static List<long> DigPassCurrList; //needed for password generator
-        //public static List<long> DigPassNextList;
         public static List<char> CharactersList; //read config, MakeConvTable
         public static string ProgressIterDoneString = ""; // Saved in SessionProgress.txt
         public static string ProgressIterToDoString = ""; // Next to do = ProgressIterDoneString+1
@@ -1429,30 +1385,19 @@ namespace LehmerGen
         public static List<long> WorkingIter;
 
         public static List<long> ProgressPoolMaxList; //main and generator
-        //public static List<long> WorkIterToDoList;
-        //public static List<long> ProgressIterToDoList9;
         public static List<long> ProgressIterToDoList18;
-        //public static List<long> IterDoneGen = new() { 0 };
-        //public static int WhatIs;
-        //public static string TotalPassCountString; //Total password count string
         public static int PassGeneratedBase = 0; //pass base generated from generator
         public static string ProgressAllCountString = ""; //Total password count if fixed length for Initialize and generator
-        //public static string PassIterMaxValueFix = ""; //Max value in string witch is last password (total - 1)
         public static string ProgressPoolMaxString = ""; //Max value to iterate in session, main and generatedictionary
-        //public static string TotalPossibleCountString = "0"; //Passwords count if non fixed length
-        
 
         public static string IncrementBase; //Increment base string
         public static string IncrementPower; //Increment power string
         public static string Increment = ""; //Increment string. Only InitializeGenerator
         public static int PassMinLength; //Password min length int
         public static int PassMaxLength; //Password max length int
-        //public static int PassCharListLength; //Length password char list
-        //public static string PassCharCount; //Count of all char that can be in password
         public static int HCDictSize;
         public static int JTRDictSize;
         public static int ZipDictSize;
-        ///public static int DictSize;
         public static int TestPassCheck;
         public static int TestPassLoops;
         public static int CounterDisplay;
@@ -1465,10 +1410,7 @@ namespace LehmerGen
         public static List<long> LastPossibleDecList = new(); //only for MakeConvTable
         public static List<long> RealPossibleCountList = new();
         public static string RealPossibleCountString = "";
-        //public static List<long> FirstIterList = new();
-        //public static List<long> LastIterList = new();
         public static int FillToLength;
-        //public static List<List<long>> PowerList = new();
         public static string GeneratorExitReason = "";
         public static List<string> TempRemoved = new();
         public static bool CheckPrime(int num)
@@ -1494,9 +1436,6 @@ namespace LehmerGen
         {
             MakeConvTable();
 
-            //PassCharListLength = PassMaxLength - 1;
-            //TotalPassCountString = TotalPossibleCountString;
-
             Console.WriteLine("Checking Increment value...");
             Console.WriteLine("IncrementBase value = " + IncrementBase);
             if (IncrementBase == "1")
@@ -1516,19 +1455,16 @@ namespace LehmerGen
             Miki.CalcConvert.StringToLongList(in Increment, 18, out IncrementList18);
             Miki.CalcConvert.StringToLongList(in Increment, 9, out IncrementList9);
 
-            //Miki.CalcConvert.StringToLongList(in PassIterCountFix, 18, out List<long> PassIterCountFixList);
-            //Passwords.TotalBasePassCountList = RealPossibleCountList; //PassPool list było PassIterCountFixList
-            Miki.CalcConvert.LongListToString(in RealPossibleCountList, "000000000000000000", out ProgressAllCountString); //nie było tego
+            Miki.CalcConvert.LongListToString(in RealPossibleCountList, "000000000000000000", out ProgressAllCountString); 
             string String1 = CalcStringExt.SplitString(Increment);
 
-            //ProgressTotalIterCountFix
             Console.WriteLine("Increment = " + String1);
             if (Miki.CalcStrings.Div(RealPossibleCountString, Increment)[1] != "0" || Increment == "1") //Check if Increment value is good for LCG
             {
                 if (Increment == "1")
                 {
                     Console.WriteLine("Total Real Pool Count % Increment == 0, but ->");
-                    Console.WriteLine("Increment value == 1 -> OK..."); 
+                    Console.WriteLine("Increment value == 1 -> OK...");
                 }
                 else
                 { Console.WriteLine("Total Real Pool Count % Increment != 0 -> OK..."); }
@@ -1539,81 +1475,36 @@ namespace LehmerGen
                 Console.WriteLine("Change the Increment configuration in GENERATOR CONFIGURATION section in Config.txt file...");
                 System.Environment.Exit(10);
             }
-            //string PassNumber = "";
-            //PassNumber = Miki.CalcStrings.Div(Miki.CalcStrings.Mul(ProgressIterToDoString, Increment)[0], ProgressAllCountString)[1];
-            //Miki.CalcConvert.StringToLongList(in PassNumber, 18, out DigPassCurrList);
-
 
             List<long> WorkingIterLocal = Miki.CalcLists.Mul(ProgressIterToDoList18, 18, IncrementList9, 9, 18);
             WorkingIterLocal = Miki.CalcLists.Add(WorkingIterLocal, FirstPossibleDecList);
             WorkingIter = WorkingIterLocal;
             List<long> WorkingDigList = Miki.CalcLists.Div(WorkingIterLocal, RealPossibleCountList)[1];
             WorkingDigList = Miki.CalcLists.Add(WorkingDigList, FirstPossibleDecList);
-            DigPassCurrList = new(WorkingDigList); //DigPassCurrList
-            
+            DigPassCurrList = new(WorkingDigList); 
+
         }
 
-
-        public static void PrepareGeneratorNext(bool GetFirst)
-        {
-
-            //string PassNumber = "";
-            /*
-            switch (WhatIs)
-            {
-                case 0: //Password
-                    DigFromPassByTab(in ProgressIterToDoString, out PassNumber);
-                    break;
-                case 1: //Iteration, best solution
-                    PassNumber = Miki.CalcStrings.Div(Miki.CalcStrings.Mul(ProgressIterToDoString, Increment)[0], ProgressAllCountString)[1];
-                    break;
-                case 2: //Number
-                    PassNumber = ProgressIterToDoString;
-                    break;
-            }
-            */
-            //PassNumber = Miki.CalcStrings.Div(Miki.CalcStrings.Mul(ProgressIterToDoString, Increment)[0], ProgressAllCountString)[1];
-            //Miki.CalcConvert.StringToLongList(in PassNumber, 18, out DigPassCurrList);
-
-            /*
-            if (GetFirst == false)
-            {
-                GetDigPassListNext(DigPassCurrList, out List<long> DigPassListCurrTemp);
-                DigPassCurrList = DigPassListCurrTemp;
-                Console.WriteLine("XXXX");
-            }
-            */
-        }
 
         public static void MakeConvTable()
         {
             Console.WriteLine("Conversion tables - generating...");
-            //List<List<List<long>>> ConvTableLocal = new();
-            //List<long> DivListLocal = DivList;
+
             List<char> CharactersListLocal = CharactersList;
-            //List<List<int>> LenTableLocal = new();
+
             List<List<char>> MaskTableLocal = MaskTable; // to create polynomial numbering system
             List<List<List<long>>> ConvTableLocal = new();
-            //string PassIterCountNFixLocal = TotalPossibleCountString;
             int PassMaxLenLocal = PassMaxLength;
 
-            /////////NOWE
-            List<List<long>> PowerListLocal = new();
-            PowerListLocal.Add(new List<long>(1) { 1 });
+            List<List<long>> PosMultiplier = new();
+            PosMultiplier.Add(new List<long>(1) { 1 }); //on ones place always Multipier==1
 
-            for (int i = 1; i < MaskTableLocal.Count; i++)
+            for (int i = 1; i < MaskTableLocal.Count; i++) //on higher places is:
             {
-                List<long> CharCount = new(1) { (long)MaskTableLocal[i - 1].Count };
-                PowerListLocal.Add(Miki.CalcLists.Mul(PowerListLocal[i - 1], 9, CharCount, 9, 9));
+                List<long> CharCount = new(1) { (long)MaskTableLocal[i - 1].Count }; //previous place characters count *
+                PosMultiplier.Add(Miki.CalcLists.Mul(PosMultiplier[i - 1], 9, CharCount, 9, 9)); // * previous PosMultiplier
             }
-            /*
-            string test = "";
-            for (int i = 0; i < CharactersList.Count; i++)
-            {
-                test = test + CharactersList[i];
-            }
-            Console.WriteLine(test);
-            */
+
             for (int CharPos = 0; CharPos < MaskTableLocal.Count; CharPos++)
             {
                 List<List<long>> ConvRow = new();
@@ -1622,82 +1513,33 @@ namespace LehmerGen
                     List<long> CharIntToMul = new();
                     if (MaskTableLocal[CharPos].Count == 1)
                     {
-                        //unary system is a little tricky, it has no zero, value is or not, except last position, where must be zero
+                        //unary system is a little tricky, it has no zero, value is or not, except ones place, where must be zero
                         //so value can be in 0 position
                         //we must watch on each unary due conversion (MaskTableLocal[k].Count == 1)
                         //because this value can be / is in upper char as 1.
-                        if (CharPos == 0 && CharValue == 0) //unary zero in last position
+                        if (CharPos == 0) //       && CharValue == 0
                         {
-                            CharIntToMul = new() { 0 };
+                            CharIntToMul = new() { 0 }; //unary zero in ones place
                         }
                         else
-                        { CharIntToMul = new() { 1 }; } //rest of unaries, they has values
+                        {
+                            CharIntToMul = new() { 1 }; //rest of unaries, they has values
+                        }
                         IsUnary = 1; //to inform converter, that there is unary
                     }
                     else
                     {
                         CharIntToMul = new() { CharValue };
                     }
-                    List<long> MultResult = Miki.CalcLists.Mul(CharIntToMul, 9, PowerListLocal[CharPos], 9, 9); //out na 18 i usunąć convert
-                    Miki.CalcConvert.ConvertList9To18(in MultResult, out List<long> MultResult18);
-                    ConvRow.Add(MultResult18);
+                    List<long> MultResult = Miki.CalcLists.Mul(CharIntToMul, 9, PosMultiplier[CharPos], 9, 18);
+                    ConvRow.Add(MultResult);
 
                 }
                 ConvTableLocal.Add(ConvRow);
             }
             ConvTable = ConvTableLocal;
 
-            /*
-            for (int i = 0; i < CharactersListLocal.Count; i++)
-            {
-                List<List<long>> ConvRow = new();
-                for (int k = 0; k < PassMaxLenLocal; k++)
-                {
-                    List<long> CharIntToMul = new();
 
-                    int IsInMask;
-
-                    if (MaskTableLocal[k].Count == 1)
-                    { IsInMask = 0; }
-                    else 
-                    { IsInMask = MaskTableLocal[k].IndexOf(CharactersListLocal[i]); }
-
-                    
-                    if (IsInMask > -1)
-                    {
-                        if (MaskTableLocal[k].Count == 1)
-                        {
-                            //unary system is a little tricky, it has no zero, value is or not, except last position, where must be zero
-                            //so value can be in 0 position
-                            //we must watch on each unary due conversion (MaskTableLocal[k].Count == 1)
-                            //because this value can be / is in upper char as 1.
-                            if (i == 0 && k == 0) //unary zero in last position
-                            { 
-                                CharIntToMul = new() { 0 }; 
-                            }
-                            else
-                            { CharIntToMul = new() { 1 }; } //rest of unaries, they has values
-                            IsUnary = 1; //to inform converter, that there is unary
-                        }
-                        else
-                        {
-                            if (i < MaskTableLocal[k].Count)
-                            { CharIntToMul = new() { i }; }
-                            else
-                            { CharIntToMul = new() { 1000 }; } // not possible i think, it goes to next else // must be bigger?????? it doesn't mater what is here, so it can be zero
-                        }
-                        List<long> MultResult = Miki.CalcLists.Mul(CharIntToMul, 9, PowerListLocal[k], 9, 9); //out na 18 i usunąć convert
-                        Miki.CalcConvert.ConvertList9To18(in MultResult, out List<long> MultResult18);
-                        ConvRow.Add(MultResult18);
-                    }
-                    else
-                    { ConvRow.Add(new List<long> { -1 }); }
-
-                }
-                ConvTableLocal.Add(ConvRow);
-            }
-            ConvTable = ConvTableLocal;
-            */
 
             List<long> AllUnarysValueLocal = new() { 0 };
             List<List<long>> AllUnarysValueListLocal = new();
@@ -1727,30 +1569,30 @@ namespace LehmerGen
                 List<long> RowLenList2 = new();
                 for (int CharValue = 0; CharValue < MaskTableLocal[CharPos].Count; CharValue++)
                 {
-                        Miki.CalcIntExt.LongLength(ConvTableLocal[CharPos][CharValue][^1], out int DigLen); // First step to make XXXX....
-                        Miki.CalcCompare.GetLongFromList(ConvTableLocal[CharPos][CharValue], 4, DigLen, out ActDigFromConv); //four digits to add later (YYYY)
-                        DigLen = 18 * (ConvTableLocal[CharPos][CharValue].Count - 1) + DigLen; //Now we have XXXX, full digit length
+                    Miki.CalcIntExt.LongLength(ConvTableLocal[CharPos][CharValue][^1], out int DigLen); // First step to make XXXX....
+                    Miki.CalcCompare.GetLongFromList(ConvTableLocal[CharPos][CharValue], 4, DigLen, out ActDigFromConv); //four digits to add later (YYYY)
+                    DigLen = 18 * (ConvTableLocal[CharPos][CharValue].Count - 1) + DigLen; //Now we have XXXX, full digit length
 
-                        //to replace zeros with proper length and digits
-                        if (DigLen >= LastDigLen2)
-                        { LastDigLen2 = DigLen; }
-                        if (ActDigFromConv > 0)
-                        { LastDigFromConv = ActDigFromConv; }
-                        //int.MaxValue = 2 147 483 647 -> DigLen (XXXX) is int, LastDigFromConv is long
-                        //so to long.MaxValue in this concept 18digits we can add max 5 places to DigLen making LastDigFromConv,
-                        //I add 4 places, that's enough, then add four digits (YYYY) from earlier calculations
-                        LastDigFromConv = (LastDigLen2 * 10000) + ActDigFromConv; //now we have XXXX...YYYY
-                                                                                  //Console.WriteLine(k + "   " + LastDigLen2 + "   " + LastDigFromConv2);
-                        RowLenList2.Add(LastDigFromConv);
+                    //to replace zeros with proper length and digits
+                    if (DigLen >= LastDigLen2)
+                    { LastDigLen2 = DigLen; }
+                    if (ActDigFromConv > 0)
+                    { LastDigFromConv = ActDigFromConv; }
+                    //int.MaxValue = 2 147 483 647 -> DigLen (XXXX) is int, LastDigFromConv is long
+                    //so to long.MaxValue in this concept 18digits we can add max 5 places to DigLen making LastDigFromConv,
+                    //I add 4 places, that's enough, then add four digits (YYYY) from earlier calculations
+                    LastDigFromConv = (LastDigLen2 * 10000) + ActDigFromConv; //now we have XXXX...YYYY
+                                                                              //Console.WriteLine(k + "   " + LastDigLen2 + "   " + LastDigFromConv2);
+                    RowLenList2.Add(LastDigFromConv);
                 }
                 DigLenListLocal.Add(RowLenList2);
             }
             DigLenList = DigLenListLocal;
 
-            string FirstPossiblePass = ""; // MaskTableLocal[0][0].ToString();
+            string FirstPossiblePass = "";
             string LastPossiblePass = "";
 
-            for (int CharPos = PassMinLength - 1; CharPos>=0; CharPos--)
+            for (int CharPos = PassMaxLength - 1; CharPos >= 0; CharPos--)
             {
                 LastPossiblePass += MaskTableLocal[CharPos][^1];
             }
@@ -1758,242 +1600,6 @@ namespace LehmerGen
             for (int CharPos = PassMinLength - 1; CharPos >= 0; CharPos--)
             {
                 FirstPossiblePass += MaskTableLocal[CharPos][0];
-            }
-            
-
-            List<long> OnPosComb = new() { MaskTableLocal[0].Count };
-            List<List<long>> OnPosCombList = new ();
-            OnPosCombList.Add(OnPosComb);
-
-            for (int i = 1; i < MaskTableLocal.Count; i++) //9 digit list
-            {
-                OnPosComb = Miki.CalcLists.Mul(OnPosCombList[i-1], 9, new List<long>() { MaskTableLocal[i].Count }, 9, 9); //out na 18 i usunąć następną pętlę
-                OnPosCombList.Add(OnPosComb);
-            }
-
-            for (int i = 0; i < OnPosCombList.Count; i++) //Convert 9 digit list to 18 digit list
-            {
-                Miki.CalcConvert.ConvertList9To18(OnPosCombList[i], out List<long> OnPosComb18);
-                OnPosCombList[i] = OnPosComb18;
-            }
-            List<List<long>> OnPosCombTotal = new();
-            OnPosCombTotal.Add(OnPosCombList[0]);
-
-            for (int i = 1; i < OnPosCombList.Count; i++) //Adding all 18 digit lists
-            {
-                OnPosCombTotal.Add(Miki.CalcLists.Add(OnPosCombList[i], OnPosCombTotal[i-1]));
-            }
-            List<long>TotalPossibleCountListLocal = new();
-
-            //Convert to string decimal First and Last Possible Password
-            DigFromPassByTab(in FirstPossiblePass, out string FirstPossibleDecStringLocal);
-            DigFromPassByTab(in LastPossiblePass, out string LastPossibleDecStringLocal);
-            //Convert string decimals to lists
-            Miki.CalcConvert.StringToLongList(in FirstPossibleDecStringLocal, 18, out FirstPossibleDecList);
-            Miki.CalcConvert.StringToLongList(in LastPossibleDecStringLocal, 18, out LastPossibleDecList);
-            //Counting possible Real iterations
-            List<long> RealPossibleCountListLocal = Miki.CalcLists.Sub(LastPossibleDecList, FirstPossibleDecList);
-            RealPossibleCountListLocal = Miki.CalcLists.Add(RealPossibleCountListLocal, new List<long> { 1 }); //Real possible passwords count list, = Pool
-            RealPossibleCountList = RealPossibleCountListLocal;
-            Miki.CalcConvert.LongListToString(in RealPossibleCountListLocal, "000000000000000000", out string RealPossibleCountStringLocal); //Real
-            RealPossibleCountString = RealPossibleCountStringLocal;
-            //Counting Progress iterations
-            string ProgressAllCountStringLocal = LastPossibleDecStringLocal; // Miki.CalcStrings.Sub(LastPossibleDec, "0")[0];
-            ProgressAllCountStringLocal = Miki.CalcStrings.Add(ProgressAllCountStringLocal, "1")[0];
-            Miki.CalcConvert.StringToLongList(in ProgressAllCountStringLocal, 18, out List<long> ProgressAllCountListLocal);
-            ProgressAllCountString = ProgressAllCountStringLocal;
-
-            string TotalPossibleCountStringLocal; //Total = Total password count Fixed + Non Fixed
-            if (PassMinLength == PassMaxLength)
-            {
-                TotalPossibleCountStringLocal = RealPossibleCountStringLocal;  // OK
-            }
-            else 
-            {
-                if (PassMinLength > 1)
-                {
-                    TotalPossibleCountListLocal = new (OnPosCombTotal[^1]);
-                    for (int i = 0; i < PassMinLength-1; i++)
-                    { TotalPossibleCountListLocal = Miki.CalcLists.Sub(TotalPossibleCountListLocal, OnPosCombList[i]); }
-                }
-                else 
-                { TotalPossibleCountListLocal = OnPosCombTotal[^1]; } //ok
-                Miki.CalcConvert.LongListToString(TotalPossibleCountListLocal, "000000000000000000", out TotalPossibleCountStringLocal);
-            }
-
-            //TotalPossibleCountString = TotalPossibleCountStringLocal;
-            //FirstIterList = FirstPossibleDecList;
-            //LastIterList = LastPossibleDecList;
-            
-            
-            //Miki.CalcConvert.StringToLongList(in ProgressAllCountStringLocal, 18, out LastPossibleDecList);
-
-            
-            string FirstIsPossibleCount = Miki.CalcStrings.Add(LastPossibleDecStringLocal, "1")[0]; //Only for info
-            Console.WriteLine();
-            Console.WriteLine("If First possible Password is:             " + MaskTableLocal[0][0] + " ->");
-            Console.WriteLine("First Base Password:                       " + MaskTableLocal[0][0]); //From Progress first password
-            Console.WriteLine("-> First Base Decimal:                     " + "0"); //From Progress first decimal
-            Console.WriteLine("Last Base Password:                        " + LastPossiblePass); //From Progress last password
-            Console.WriteLine("-> Last Base Decimal:                      " + Miki.CalcStringExt.SplitString(LastPossibleDecStringLocal)); //From Progress last decimal
-            Console.WriteLine("Base Iterations (Passwords) count:         " + Miki.CalcStringExt.SplitString(FirstIsPossibleCount)); //From Progress (LastBaseDec - FirstBaseDec)+1
-            Console.WriteLine();
-            Console.WriteLine("First possible Password:                   " + FirstPossiblePass + " ->");//Real first password
-            Console.WriteLine("-> First possible Password in Decimal:     " + Miki.CalcStringExt.SplitString(FirstPossibleDecStringLocal)); //Real First decimal
-            Console.WriteLine("Last possible Password:                    " + LastPossiblePass); //Real last password, equal to From Progress last password
-            Console.WriteLine("-> Last possible Password in Decimal:      " + Miki.CalcStringExt.SplitString(LastPossibleDecStringLocal)); //Real last decimal equal to From Progress last decimal
-            Console.WriteLine("Base Iterations (Passwords) count:         " + Miki.CalcStringExt.SplitString(RealPossibleCountStringLocal)); //Real to do = (LastPossibleDec-FirstPossibleDec) + 1
-
-            Console.WriteLine("Total Full possible Passwords in Decimal:  " + Miki.CalcStringExt.SplitString(TotalPossibleCountStringLocal)); //Real all length passwords count
-            Console.WriteLine();
-            Console.WriteLine("Conversion tables - done...");
-            Console.WriteLine();
-        }
-
-        public static void MakeConvTableOld()
-        {
-            Console.WriteLine("Conversion tables - generating...");
-            //List<List<List<long>>> ConvTableLocal = new();
-            //List<long> DivListLocal = DivList;
-            List<char> CharactersListLocal = CharactersList;
-            //List<List<int>> LenTableLocal = new();
-            List<List<char>> MaskTableLocal = MaskTable; // to create polynomial numbering system
-            List<List<List<long>>> ConvTableLocal = new();
-            //string PassIterCountNFixLocal = TotalPossibleCountString;
-            int PassMaxLenLocal = PassMaxLength;
-
-            /////////NOWE
-            List<List<long>> PowerListLocal = new();
-            PowerListLocal.Add(new List<long>(1) { 1 });
-
-            for (int i = 1; i < MaskTableLocal.Count; i++)
-            {
-                List<long> CharCount = new(1) { (long)MaskTableLocal[i - 1].Count };
-                PowerListLocal.Add(Miki.CalcLists.Mul(PowerListLocal[i - 1], 9, CharCount, 9, 9));
-            }
-            /*
-            string test = "";
-            for (int i = 0; i < CharactersList.Count; i++)
-            {
-                test = test + CharactersList[i];
-            }
-            Console.WriteLine(test);
-            */
-            for (int i = 0; i < CharactersListLocal.Count; i++)
-            {
-                List<List<long>> ConvRow = new();
-                for (int k = 0; k < PassMaxLenLocal; k++)
-                {
-                    List<long> CharIntToMul = new();
-
-                    int IsInMask;
-
-                    if (MaskTableLocal[k].Count == 1)
-                    { IsInMask = 0; }
-                    else
-                    { IsInMask = MaskTableLocal[k].IndexOf(CharactersListLocal[i]); }
-
-
-                    if (IsInMask > -1)
-                    {
-                        if (MaskTableLocal[k].Count == 1)
-                        {
-                            //unary system is a little tricky, it has no zero, value is or not, except last position, where must be zero
-                            //so value can be in 0 position
-                            //we must watch on each unary due conversion (MaskTableLocal[k].Count == 1)
-                            //because this value can be / is in upper char as 1.
-                            if (i == 0 && k == 0) //unary zero in last position
-                            {
-                                CharIntToMul = new() { 0 };
-                            }
-                            else
-                            { CharIntToMul = new() { 1 }; } //rest of unaries, they has values
-                            IsUnary = 1; //to inform converter, that there is unary
-                        }
-                        else
-                        {
-                            if (i < MaskTableLocal[k].Count)
-                            { CharIntToMul = new() { i }; }
-                            else
-                            { CharIntToMul = new() { 1000 }; } // not possible i think, it goes to next else // must be bigger?????? it doesn't mater what is here, so it can be zero
-                        }
-                        List<long> MultResult = Miki.CalcLists.Mul(CharIntToMul, 9, PowerListLocal[k], 9, 9); //out na 18 i usunąć convert
-                        Miki.CalcConvert.ConvertList9To18(in MultResult, out List<long> MultResult18);
-                        ConvRow.Add(MultResult18);
-                    }
-                    else
-                    { ConvRow.Add(new List<long> { -1 }); }
-
-                }
-                ConvTableLocal.Add(ConvRow);
-            }
-            ConvTable = ConvTableLocal;
-
-
-            List<long> AllUnarysValueLocal = new() { 0 };
-            List<List<long>> AllUnarysValueListLocal = new();
-
-            for (int i = 0; i < MaskTableLocal.Count; i++)
-            {
-                if (MaskTableLocal[i].Count == 1)
-                {
-                    AllUnarysValueLocal = Miki.CalcLists.Add(AllUnarysValueLocal, ConvTableLocal[0][i]);
-                    AllUnarysValueListLocal.Add(AllUnarysValueLocal);
-                }
-                else
-                { AllUnarysValueListLocal.Add(AllUnarysValueLocal); }
-            }
-            AllUnarysValueList = AllUnarysValueListLocal;
-
-            int LastDigLen2 = 0;
-            long LastDigFromConv = 0;
-            long ActDigFromConv = 0;
-            List<List<long>> DigLenListLocal = new();
-            //Concept, make long list to compare (DigLenList) similar to ConvTable, before compare with ConvTable,
-            //it will contain XXXX...YYYY numbers, where
-            //XXXX... full number length, YYYY - first digits from this number
-            //look in PassListFromDigMyTab (variable ActDigToCompare)
-            for (int k = 0; k < PassMaxLenLocal; k++)
-            {
-                List<long> RowLenList2 = new();
-                for (int i = 0; i < CharactersListLocal.Count; i++)
-                {
-                    if (ConvTableLocal[i][k][^1] > -1)
-                    {
-                        Miki.CalcIntExt.LongLength(ConvTableLocal[i][k][^1], out int DigLen); // First step to make XXXX....
-                        Miki.CalcCompare.GetLongFromList(ConvTableLocal[i][k], 4, DigLen, out ActDigFromConv); //four digits to add later (YYYY)
-                        DigLen = 18 * (ConvTableLocal[i][k].Count - 1) + DigLen; //Now we have XXXX, full digit length
-
-                        //to replace zeros with proper length and digits
-                        if (DigLen >= LastDigLen2)
-                        { LastDigLen2 = DigLen; }
-                        if (ActDigFromConv > 0)
-                        { LastDigFromConv = ActDigFromConv; }
-                        //int.MaxValue = 2 147 483 647 -> DigLen (XXXX) is int, LastDigFromConv is long
-                        //so to long.MaxValue in this concept 18digits we can add max 5 places to DigLen making LastDigFromConv,
-                        //I add 4 places, that's enough, then add four digits (YYYY) from earlier calculations
-                        LastDigFromConv = (LastDigLen2 * 10000) + ActDigFromConv; //now we have XXXX...YYYY
-                                                                                  //Console.WriteLine(k + "   " + LastDigLen2 + "   " + LastDigFromConv2);
-                        RowLenList2.Add(LastDigFromConv);
-                    }
-                    else
-                    { RowLenList2.Add(-1); }
-                }
-                DigLenListLocal.Add(RowLenList2);
-            }
-            DigLenList = DigLenListLocal;
-
-            string FirstPossiblePass = ""; // MaskTableLocal[0][0].ToString();
-            string LastPossiblePass = "";
-
-            for (int i = PassMaxLength - 1; i >= 0; i--)
-            {
-                LastPossiblePass += MaskTableLocal[i][^1];
-            }
-
-            for (int i = PassMinLength - 1; i >= 0; i--)
-            {
-                FirstPossiblePass += MaskTableLocal[i][0];
             }
 
 
@@ -2034,7 +1640,7 @@ namespace LehmerGen
             Miki.CalcConvert.LongListToString(in RealPossibleCountListLocal, "000000000000000000", out string RealPossibleCountStringLocal); //Real
             RealPossibleCountString = RealPossibleCountStringLocal;
             //Counting Progress iterations
-            string ProgressAllCountStringLocal = LastPossibleDecStringLocal; // Miki.CalcStrings.Sub(LastPossibleDec, "0")[0];
+            string ProgressAllCountStringLocal = LastPossibleDecStringLocal; 
             ProgressAllCountStringLocal = Miki.CalcStrings.Add(ProgressAllCountStringLocal, "1")[0];
             Miki.CalcConvert.StringToLongList(in ProgressAllCountStringLocal, 18, out List<long> ProgressAllCountListLocal);
             ProgressAllCountString = ProgressAllCountStringLocal;
@@ -2057,13 +1663,6 @@ namespace LehmerGen
                 Miki.CalcConvert.LongListToString(TotalPossibleCountListLocal, "000000000000000000", out TotalPossibleCountStringLocal);
             }
 
-            //TotalPossibleCountString = TotalPossibleCountStringLocal;
-            //FirstIterList = FirstPossibleDecList;
-            //LastIterList = LastPossibleDecList;
-
-
-            //Miki.CalcConvert.StringToLongList(in ProgressAllCountStringLocal, 18, out LastPossibleDecList);
-
 
             string FirstIsPossibleCount = Miki.CalcStrings.Add(LastPossibleDecStringLocal, "1")[0]; //Only for info
             Console.WriteLine();
@@ -2085,6 +1684,8 @@ namespace LehmerGen
             Console.WriteLine("Conversion tables - done...");
             Console.WriteLine();
         }
+
+
         public static List<string> PassListFromDigByTab(int PassToBeGen)
         {
             int PassMinLengthLocal = PassMinLength;
@@ -2110,8 +1711,6 @@ namespace LehmerGen
             List<long> DigPassNextListLocal = new();
             List<long> WorkingIterLocal = WorkingIter;
 
-            //List<char> CharactersListLocal = CharactersList;
-            //int CharactersListLocalCount = CharactersListLocal.Count;
             List<List<char>> MaskTableLocal = MaskTable;
             List<List<List<long>>> ConvTableLocal = ConvTable;
             List<List<long>> DigLenListLocal = DigLenList;
@@ -2124,12 +1723,12 @@ namespace LehmerGen
             List<long> IncrementList9Local = IncrementList9;
             List<long> FirstPossibleDecListLocal = FirstPossibleDecList;
             List<long> RealPossibleCountListLocal = RealPossibleCountList;
-            
+
             List<long> IterPlus = new() { 1 };
-            
+
             List<long> ProgressIterToDoListLocal = ProgressIterToDoList18;
             List<long> ProgressPoolMaxListLocal = ProgressPoolMaxList;
-            
+
             long LastDisplayCount = 0;
 
             int MyOut = 10;
@@ -2147,10 +1746,9 @@ namespace LehmerGen
             //at start generator we must use ProgressIterToDoList18 to generate WorkingIter and WorkingDigList == DigPassCurListLocal
             //in main loop we can do it easier: WorkingIterLocal = Miki.CalcLists.Add(WorkingIterLocal, IncrementList18Local);
             WorkingIterLocal = Miki.CalcLists.Mul(ProgressIterToDoList18, 18, IncrementList9Local, 9, 18);
-            //WorkingIterLocal = Miki.CalcLists.Add(WorkingIterLocal, FirstPossibleDecListLocal);
             List<long> WorkingDigList = Miki.CalcLists.Div(WorkingIterLocal, RealPossibleCountListLocal)[1];
             WorkingDigList = Miki.CalcLists.Add(WorkingDigList, FirstPossibleDecListLocal);
-            DigPassCurrListLocal = new(WorkingDigList); //DigPassCurrList
+            DigPassCurrListLocal = new(WorkingDigList); 
 
             LoopStopwatchFull = Stopwatch.StartNew();
             int FirstNonZero = 0;
@@ -2158,276 +1756,237 @@ namespace LehmerGen
             int TotalEndCheck = 1;
             while (true)
             {
-                    int CharPosMax = PassMaxLengthLocal - 1;
-                    List<long> ToCompare = DigPassCurrListLocal;
-                    List<long> ToCompareFull = DigPassCurrListLocal;
-                    List<long> UnarySubtracted = new();
-                    int IsUnarySubtracted = 0;
-                    int IsBigger = 10;
-                    if (IsUnary == 1)
+                int CharPosMax = PassMaxLengthLocal - 1;
+                int CharPosForUnary = PassMaxLengthLocal - 1;
+                List<long> ToCompare = DigPassCurrListLocal;
+                List<long> ToCompareFull = DigPassCurrListLocal;
+                List<long> UnarySubtracted = new();
+                int IsUnarySubtracted = 0;
+                int IsBigger = 10; //temporary
+                if (IsUnary == 1)
+                {
+                    for (int i = CharPosMax; i > 0; i--)
                     {
-                        for (int i = CharPosMax; i > 0; i--)
+                        UnaryToCompare = AllUnarysValueListLocal[i];
+                        Miki.CalcCompare.ListBigger(in ToCompare, in UnaryToCompare, out IsBigger);
+                        if (IsBigger != 2) // if AllUnaryValueListLocal[CharPos] is equal bigger than ToCompare
                         {
-                            UnaryToCompare = AllUnarysValueListLocal[i];
-                            Miki.CalcCompare.ListBigger(in ToCompare, in UnaryToCompare, out IsBigger);
-                            if (IsBigger != 2)
-                            {
-                                ToCompare = Miki.CalcLists.Sub(ToCompare, UnaryToCompare);
-                                IsUnarySubtracted = 1;
-                                break;
-                            }
+                            ToCompare = Miki.CalcLists.Sub(ToCompare, UnaryToCompare); //we subtract UnaryToCompare
+                            IsUnarySubtracted = 1;
+                            //now we must tell converter, which CharPos can take unary value
+                            CharPosForUnary = i;
+                            break;
                         }
                     }
-                    List<char> MyCharList = new(PassMaxLengthLocal); //new password in char
-                    List<string> PassFromDigList = new(PassMaxLengthLocal); //new password in string
+                }
+                List<char> MyCharList = new(PassMaxLengthLocal); //new password in char
+                List<string> PassFromDigList = new(PassMaxLengthLocal); //new password in string
 
-                    string NewPass;
-                    FirstNonZero = 0;
+                string NewPass;
+                FirstNonZero = 0;
 
-                    while (CharPosMax >= 0)   //CharPosMax - char position in password, (CharInt-1) char in password
+                while (CharPosMax >= 0)   
+                {
+                    if (IsUnarySubtracted == 1 && MaskTableLocal[CharPosMax].Count == 1)
                     {
-                        if (IsUnarySubtracted == 1 && MaskTableLocal[CharPosMax].Count == 1)
                         {
-                            //List<long> UnaryToCompareFull = AllUnarysValueListLocal[CharPosMax];
-                            //Miki.CalcCompare.ListBigger(in ToCompareFull, in UnaryToCompareFull, out int IsBiggerFull);
-                            //if (IsBiggerFull != 2)
+                            if (CharPosMax <= CharPosForUnary)
                             {
-                                MyCharList.Add(MaskTableLocal[CharPosMax][0]);
+                                MyCharList.Add(MaskTableLocal[CharPosMax][0]); //here unary value is possible
                                 FirstNonZero = 1;
                             }
                         }
-                        else
-                        {
-                            Miki.CalcIntExt.LongLength(ToCompare[^1], out int ToCompareLen); //Last pos ToCompare length
-                                                                                             //prepare XXXX...YYYY (ActDigToCompare) from ToCompare diglist
-                            Miki.CalcCompare.GetLongFromList(in ToCompare, 4, in ToCompareLen, out long ActDigToCompare); //YYYY
-                            ToCompareLen = 18 * (ToCompare.Count - 1) + ToCompareLen; //Full Length XXXX....
-                            ActDigToCompare = (ToCompareLen * 10000) + ActDigToCompare; //Make 4 places and add ActDigToCompare -> XXXX...YYYY
+                    }
+                    else
+                    {
+                        //prepare XXXX...YYYY (ActDigToCompare) from ToCompare diglist
+                        Miki.CalcIntExt.LongLength(ToCompare[^1], out int ToCompareLen); //Last pos ToCompare length                                                   
+                        Miki.CalcCompare.GetLongFromList(in ToCompare, 4, in ToCompareLen, out long ActDigToCompare); //YYYY
+                        ToCompareLen = 18 * (ToCompare.Count - 1) + ToCompareLen; //Full Length XXXX....
+                        ActDigToCompare = (ToCompareLen * 10000) + ActDigToCompare; //Make 4 places and add ActDigToCompare -> XXXX...YYYY
 
-                            int StartCompare = 0; //if ToCompareLen bigger than DigLenListLocal[CharPosMax][i] - Not possible???
-                            int EndCompare = MaskTableLocal[CharPosMax].Count;
-                            
-                            for (int i = 0; i < MaskTableLocal[CharPosMax].Count; i++)
+                        int StartCompare = 0;
+                        int EndCompare = MaskTableLocal[CharPosMax].Count;
+
+                        for (int i = 0; i < MaskTableLocal[CharPosMax].Count; i++)
+                        {
+                            if (DigLenListLocal[CharPosMax][i] >= ActDigToCompare)
                             {
-                                if (DigLenListLocal[CharPosMax][i] >= ActDigToCompare)
-                                {
-                                //EndCompare = i;
-                                //if (i > 1)
-                                //{ StartCompare = i - 1; }
-                               // else 
-                                //{ StartCompare = 0; }
-                                
+                                EndCompare = i+1;
                                 break;
-                                }
-                                StartCompare = i;
                             }
-                        //if (StartCompare > EndCompare)
-                        //{ }
+                            StartCompare = i;
+                        }
+                        { }
 
-                            /*
-                        int Found = 0;
-                        int ChPos = 0;
-                        int ChVal = 0;
-                        for (int CharPos = 0; CharPos < DigLenListLocal.Count; CharPos++)
+                        for (int CharInt = StartCompare; CharInt < EndCompare; CharInt++)
                         {
-                            for (int CharValue = 0; CharValue < DigLenListLocal[CharPos].Count; CharValue++)
+                            if (CharPosMax == 0)
+                            { FirstNonZero = 1; }
+                            Miki.CalcCompare.ListBigger(ConvTableLocal[CharPosMax][CharInt], in ToCompare, out MyOut);
+
+                            if (MyOut == 1)
                             {
-                                if (DigLenListLocal[CharPos][CharValue] >= ActDigToCompare)
+                                int Char;
+                                if (CharInt > 1)
+                                { Char = CharInt - 1; }
+                                else
+                                { Char = 0; }
+                                if (Char > 0 || FirstNonZero == 1)
                                 {
-                                    Found++;
-                                    ChPos = CharPos;
-                                    ChVal = CharValue;
-                                    break;
+                                    ToCompare = Miki.CalcLists.Sub(ToCompare, ConvTableLocal[CharPosMax][Char]);
+                                    char CharToAdd = MaskTableLocal[CharPosMax][Char];
+                                    MyCharList.Add(CharToAdd);
+                                    FirstNonZero = 1;
                                 }
+                                break;
                             }
-                            if (Found == 1)
-                            { break; }
-                        }
-                            */
-                        //CharPosMax = ChPos;
-                        //if (ChVal == 0)
-                        //{ StartCompare = 0; }
-                        //else 
-                        //{ StartCompare = ChVal - 1; }
-                        
-                            //all above is very fast, and now we have StartCompare value,
-                            //so we don't need to search in all ConvTableLocal and do lots of calculation,
-                            //moreover StartCompare is probably first and last position
-                            //we must look at..., so next loop is as short as needed...
-                            //_ = PassTextListLocal;
-                            for (int CharInt = StartCompare; CharInt < EndCompare; CharInt++)
+                            if (MyOut == 0)
                             {
-                                if (CharPosMax == 0)
-                                { FirstNonZero = 1; }
-                                Miki.CalcCompare.ListBigger(ConvTableLocal[CharPosMax][CharInt], in ToCompare, out MyOut);
+                                if (CharInt > 0 || FirstNonZero == 1)
+                                {
+                                    ToCompare = Miki.CalcLists.Sub(ToCompare, ConvTableLocal[CharPosMax][CharInt]);
+                                    char CharToAdd = MaskTableLocal[CharPosMax][CharInt];
+                                    MyCharList.Add(CharToAdd);
+                                    FirstNonZero = 1;
+                                }
+                                break;
+                            }
 
-                                if (MyOut == 1)
-                                {
-                                    int Char;
-                                    if (CharInt > 1)
-                                    { Char = CharInt - 1; }
-                                    else
-                                    { Char = 0; }
-                                    if (Char > 0 || FirstNonZero == 1)
-                                    {
-                                        ToCompare = Miki.CalcLists.Sub(ToCompare, ConvTableLocal[CharPosMax][Char]);
-                                        char CharToAdd = MaskTableLocal[CharPosMax][Char];
-                                        MyCharList.Add(CharToAdd);
-                                        FirstNonZero = 1;
-                                    }
-                                    break;
-                                }
-                                if (MyOut == 0)
-                                {
-                                    if (CharInt > 0 || FirstNonZero == 1)
-                                    {
-                                        ToCompare = Miki.CalcLists.Sub(ToCompare, ConvTableLocal[CharPosMax][CharInt]);
-                                        char CharToAdd = MaskTableLocal[CharPosMax][CharInt];
-                                        MyCharList.Add(CharToAdd);
-                                        FirstNonZero = 1;
-                                    }
-                                    break;
-                                }
-
-                                if ((CharInt == EndCompare - 1) && (MyOut == 2))
-                                {
-                                    //if (CharInt > 0 || FirstNonZero == 1)
-                                    {
-                                        ToCompare = Miki.CalcLists.Sub(ToCompare, ConvTableLocal[CharPosMax][CharInt]);
-                                        char CharToAdd = MaskTableLocal[CharPosMax][CharInt];
-                                        MyCharList.Add(CharToAdd);
-                                        FirstNonZero = 1;
-                                    }
-                                    break;
-                                }
-                            } //end loop for looking for character
-                        }
-                        CharPosMax--;
-                    } //end loop for char position in password (from up)
+                            if ((CharInt == EndCompare - 1) && (MyOut == 2))
+                            {
+                                    ToCompare = Miki.CalcLists.Sub(ToCompare, ConvTableLocal[CharPosMax][CharInt]);
+                                    char CharToAdd = MaskTableLocal[CharPosMax][CharInt];
+                                    MyCharList.Add(CharToAdd);
+                                    FirstNonZero = 1;
+                                break;
+                            }
+                        } //end loop for looking for character
+                    }
+                    CharPosMax--;
+                } //end loop for char position in password (from up)
 
                 //here we have a password which is converted from decimal iteration, eg. XXXXX
                 //we can fill now rest of characters, but characters must represent zeros -> YYYYYXXXXX
-                //int FillToLength = 1; //if we want to fill
 
                 if (FillToLengthLocal == 1)
+                {
+                    if (MyCharList.Count == PassMinLengthLocal) //Fixed or not, but first pass is ok
                     {
-                        //DiscardPass = 0; //to check, if character we want to add is zero
-                        if (MyCharList.Count == PassMinLengthLocal) //Fixed or not, but first pass is ok
+                        if (PassMaxLengthLocal == PassMinLengthLocal) //Fixed, first pass length ok
                         {
-                            if (PassMaxLengthLocal == PassMinLengthLocal) //Fixed, first pass length ok
-                            {
                             //we can always add first pass
-                            
-                                NewPass = new string(MyCharList.ToArray());
-                                PassFromDigList.Add(NewPass);
-                                PassGeneratedBaseLocal++;
-                                PassGeneratedFull++;
-                            }
-                            else //Not fixed, first pass length is ok
-                            {
-                                //we can always add first pass
-                                NewPass = new string(MyCharList.ToArray());
-                                PassFromDigList.Add(NewPass);
-                                PassGeneratedBaseLocal++;
-                                PassGeneratedFull++;
-                                //fill next characters
-                                while (MyCharList.Count < PassMaxLengthLocal)//add to max length, and add to PassFromDigList
-                                {
-                                    if (MaskTableLocal[MyCharList.Count].Count > 1) //if next character is zero we can add, if not we must break adding
-                                    {
-                                        char ActZero = MaskTableLocal[MyCharList.Count][0]; //this is zero
-                                        MyCharList.Insert(0, ActZero);
-                                        NewPass = new string(MyCharList.ToArray());
-                                        PassFromDigList.Add(NewPass);
-                                        PassGeneratedFull++;
-                                    }
-                                    else
-                                    { 
-                                        break; 
-                                    }
-                                }
-                            }
+
+                            NewPass = new string(MyCharList.ToArray());
+                            PassFromDigList.Add(NewPass);
+                            PassGeneratedBaseLocal++;
+                            PassGeneratedFull++;
                         }
-                        else //Fixed or not, but first pass is to short
+                        else //Not fixed, first pass length is ok
                         {
-                            if (PassMaxLengthLocal == PassMinLengthLocal) //Fixed length
+                            //we can always add first pass
+                            NewPass = new string(MyCharList.ToArray());
+                            PassFromDigList.Add(NewPass);
+                            PassGeneratedBaseLocal++;
+                            PassGeneratedFull++;
+                            //fill next characters
+                            while (MyCharList.Count < PassMaxLengthLocal)//add to max length, and add to PassFromDigList
                             {
-                                //we can add next character if we check it is zero
-                                while (MyCharList.Count < PassMaxLengthLocal)
+                                if (MaskTableLocal[MyCharList.Count].Count > 1) //if next character is zero we can add, if not we must break adding
                                 {
-                                    if (MaskTableLocal[MyCharList.Count].Count > 1) //if next character is zero we can add, if not we must break adding
-                                    {
-                                        char ActZero = MaskTableLocal[MyCharList.Count][0]; //this is zero
-                                        MyCharList.Insert(0, ActZero);
-                                    }
-                                    else
-                                    { break; }
+                                    char ActZero = MaskTableLocal[MyCharList.Count][0]; //this is zero
+                                    MyCharList.Insert(0, ActZero);
+                                    NewPass = new string(MyCharList.ToArray());
+                                    PassFromDigList.Add(NewPass);
+                                    PassGeneratedFull++;
                                 }
-
-                                NewPass = new string(MyCharList.ToArray()); //finally add to passlist
-                                PassFromDigList.Add(NewPass);
-                                PassGeneratedBaseLocal++;
-                                PassGeneratedFull++;
-
-                            }
-                            else //Not fixed
-                            {
-                                //fill to min length and add
-                                while (MyCharList.Count < PassMinLengthLocal)//add to min length
+                                else
                                 {
-                                    if (MaskTableLocal[MyCharList.Count].Count > 1) //if zero we can add
-                                    {
-                                        char ActZero = MaskTableLocal[MyCharList.Count][0];
-                                        MyCharList.Insert(0, ActZero);
-                                    }
-                                    else 
-                                    { break; } // break if no zero
-
+                                    break;
                                 }
-
-                                NewPass = new string(MyCharList.ToArray()); //first pass with min length, we can add
-                                PassFromDigList.Add(NewPass);
-                                PassGeneratedBaseLocal++;
-                                PassGeneratedFull++;
-
-                                //fill from min to max, then add
-                                while (MyCharList.Count < PassMaxLengthLocal)
-                                {
-                                    if (MaskTableLocal[MyCharList.Count].Count > 1)
-                                    {
-                                        char ActZero = MaskTableLocal[MyCharList.Count][0];
-                                        MyCharList.Insert(0, ActZero);
-                                        NewPass = new string(MyCharList.ToArray());
-                                        PassFromDigList.Add(NewPass);
-                                        PassGeneratedFull++;
-                                    }
-                                    else
-                                    { break; }
-                                }
-                                
                             }
                         }
                     }
-                    else 
+                    else //Fixed or not, but first pass is to short
                     {
-                        //if we don't want to fill
-                        NewPass = new string(MyCharList.ToArray());
-                        PassFromDigList.Add(NewPass);
-                        PassGeneratedBaseLocal++;
-                        PassGeneratedFull++;
-                    }
+                        if (PassMaxLengthLocal == PassMinLengthLocal) //Fixed length
+                        {
+                            //we can add next character if we check it is zero
+                            while (MyCharList.Count < PassMaxLengthLocal)
+                            {
+                                if (MaskTableLocal[MyCharList.Count].Count > 1) //if next character is zero we can add, if not we must break adding
+                                {
+                                    char ActZero = MaskTableLocal[MyCharList.Count][0]; //this is zero
+                                    MyCharList.Insert(0, ActZero);
+                                }
+                                else
+                                { break; }
+                            }
 
-                    int PassFromDigListCount = PassFromDigList.Count; //All pass count in PassFromDigList, we can add now
-                    if (PassFromDigListCount > 0)
-                    {
-                        //if added to output list, we can count all passes
-                        PassTextListLocal.AddRange(PassFromDigList);
-#if DEBUG
-                        //Miki.CalcConvert.LongListToString(DigPassCurrListLocal, "000000000000000000", out string Test);
-                        //for (int i = 0; i < PassFromDigList.Count; i++)
-                        //{ Console.WriteLine(Test + "  " + PassFromDigList[i]); }
-#endif
+                            NewPass = new string(MyCharList.ToArray()); //finally add to passlist
+                            PassFromDigList.Add(NewPass);
+                            PassGeneratedBaseLocal++;
+                            PassGeneratedFull++;
+
+                        }
+                        else //Not fixed
+                        {
+                            //fill to min length and add
+                            while (MyCharList.Count < PassMinLengthLocal)//add to min length
+                            {
+                                if (MaskTableLocal[MyCharList.Count].Count > 1) //if zero we can add
+                                {
+                                    char ActZero = MaskTableLocal[MyCharList.Count][0];
+                                    MyCharList.Insert(0, ActZero);
+                                }
+                                else
+                                { break; } // break if no zero
+
+                            }
+
+                            NewPass = new string(MyCharList.ToArray()); //first pass with min length, we can add
+                            PassFromDigList.Add(NewPass);
+                            PassGeneratedBaseLocal++;
+                            PassGeneratedFull++;
+
+                            //fill from min to max, then add
+                            while (MyCharList.Count < PassMaxLengthLocal)
+                            {
+                                if (MaskTableLocal[MyCharList.Count].Count > 1)
+                                {
+                                    char ActZero = MaskTableLocal[MyCharList.Count][0];
+                                    MyCharList.Insert(0, ActZero);
+                                    NewPass = new string(MyCharList.ToArray());
+                                    PassFromDigList.Add(NewPass);
+                                    PassGeneratedFull++;
+                                }
+                                else
+                                { break; }
+                            }
+
+                        }
                     }
+                }
+                else
+                {
+                    //if we don't want to fill
+                    NewPass = new string(MyCharList.ToArray());
+                    PassFromDigList.Add(NewPass);
+                    PassGeneratedBaseLocal++;
+                    PassGeneratedFull++;
+                }
+
+                int PassFromDigListCount = PassFromDigList.Count; //All pass count in PassFromDigList, we can add now
+                if (PassFromDigListCount > 0)
+                {
+                    //if added to output list, we can count all passes
+                    PassTextListLocal.AddRange(PassFromDigList);
+#if DEBUG
+                    //Miki.CalcConvert.LongListToString(DigPassCurrListLocal, "000000000000000000", out string Test);
+                    //for (int i = 0; i < PassFromDigList.Count; i++)
+                    //{ Console.WriteLine(Test + "  " + PassFromDigList[i]); }
+#endif
+                }
 
                 //here we have done all password from current iteration, so we must add 1 to ProgressIterToDoListLocal
                 ProgressIterToDoListLocal = Miki.CalcLists.Add(ProgressIterToDoListLocal, IterPlus);
@@ -2439,7 +1998,6 @@ namespace LehmerGen
                 }
 
                 //NEW NUMBER (seed)
-                //Console.WriteLine(WorkingIterLocal[0]);
                 WorkingIterLocal = Miki.CalcLists.Add(WorkingIterLocal, IncrementList18Local);
                 WorkingDigList = Miki.CalcLists.Div(WorkingIterLocal, RealPossibleCountListLocal)[1];
                 WorkingDigList = Miki.CalcLists.Add(WorkingDigList, FirstPossibleDecListLocal);
@@ -2490,9 +2048,7 @@ namespace LehmerGen
                     ProgressIterDoneList18 = Miki.CalcLists.Sub(ProgressIterToDoListLocal, IterPlus);
                     Miki.CalcConvert.LongListToString(in ProgressIterDoneList18, "000000000000000000", out ProgressIterDoneString);
 
-                    //DigPassCurrListLocal = DigPassNextListLocal;
                     DigPassCurrList = DigPassCurrListLocal;
-                    //ProgressIterToDoList18 = DigPassNextListLocal;
                     long TimeNsFTotal = (long)LoopStopwatchFull.Elapsed.TotalNanoseconds;
                     long TimeMsF = LoopStopwatchFull.Elapsed.Milliseconds;
                     long TimeSecF = LoopStopwatchFull.Elapsed.Seconds;
@@ -2518,16 +2074,15 @@ namespace LehmerGen
             WorkingIterLocal = Miki.CalcLists.Add(WorkingIterLocal, FirstPossibleDecList);
             List<long> WorkingDigList = Miki.CalcLists.Div(WorkingIterLocal, RealPossibleCountList)[1];
             WorkingDigList = Miki.CalcLists.Add(WorkingDigList, FirstPossibleDecList);
-            ProgressIterToDoList = new(WorkingDigList); //DigPassCurrList
+            ProgressIterToDoList = new(WorkingDigList); 
         }
 
-        
+
         public static void DigFromPassByTab(in string MyPass, out string DigString)
         {
             //convert n-char password to string-number
             List<char> CharList = new(MyPass);
             int k = 0;
-            //List<char> CharactersListLocal = CharactersList;
             List<List<char>> MaskTableLocal = MaskTable;
 
             List<long> DigList = new List<long>() { 0 };
@@ -2579,7 +2134,7 @@ namespace LehmerGen
             try
             {
                 Console.WriteLine("Warming up...");
-                List<string> PassTestList = PassListFromDigByTab(LoopCount*5); //build List of Passwords
+                List<string> PassTestList = PassListFromDigByTab(LoopCount * 5); //build List of Passwords
                 for (int i = 0; i < PassTestList.Count; i++)
                 { DigFromPassByTab(PassTestList[i], out string Warming); }
                 Console.WriteLine("");
@@ -2594,7 +2149,7 @@ namespace LehmerGen
             WorkingIterLocal = Miki.CalcLists.Add(WorkingIterLocal, FirstPossibleDecListLocal);
             List<long> WorkingDigList = Miki.CalcLists.Div(WorkingIterLocal, RealPossibleCountListLocal)[1];
             WorkingDigList = Miki.CalcLists.Add(WorkingDigList, FirstPossibleDecListLocal);
-            PassDigListAct = new(WorkingDigList); //DigPassCurrList
+            PassDigListAct = new(WorkingDigList); 
 
             while (true)
             {
@@ -2639,18 +2194,15 @@ namespace LehmerGen
                             DigFromPassByTab(TempPassString, out DigString); //change each password to dig
                         }
 
-                        //GetDigPassListNext(PassDigListAct, out List<long> PassDigListActTemp);
-
                         ///////
                         ProgressIterToDoListLocal = Miki.CalcLists.Add(ProgressIterToDoListLocal, IterPlus);
                         WorkingIterLocal = Miki.CalcLists.Mul(ProgressIterToDoListLocal, 18, IncrementList9Local, 9, 18);
                         WorkingIterLocal = Miki.CalcLists.Add(WorkingIterLocal, FirstPossibleDecListLocal);
                         WorkingDigList = Miki.CalcLists.Div(WorkingIterLocal, RealPossibleCountListLocal)[1];
                         WorkingDigList = Miki.CalcLists.Add(WorkingDigList, FirstPossibleDecListLocal);
-                        PassDigListAct = new(WorkingDigList); //DigPassCurrList
+                        PassDigListAct = new(WorkingDigList); 
                         /////////
 
-                        //PassDigListAct = PassDigListActTemp;
                     }
                     StopwatchCheckList.Stop();
                     GenTimeCheckMs = (long)StopwatchCheckList.Elapsed.TotalMilliseconds;
@@ -3211,13 +2763,12 @@ namespace Miki
             }
             return MyOutput;
         }
-        
+
 
         public static List<long> Add(List<long> Dig1List, List<long> Dig2List)
         {
             int Dig1ListCount = Dig1List.Count;
             int Dig2ListCount = Dig2List.Count;
-            //int DigListCount = Dig1List.Count;
             int MaxLoops = Dig1ListCount;
             int MinLoops = Dig2ListCount;
             int BiggerDig = 0;
@@ -3332,12 +2883,8 @@ namespace Miki
 
             if (DigBigger == 2)
             {
-                //List<long> DigChangeTemp = new(Dig1List);
-                //Dig1List = new(Dig2List);
-                //Dig2List = new(DigChangeTemp);
                 MaxLoops = Dig2ListCount;
                 MinLoops = Dig1ListCount;
-                //DigBigger = 1;
             }
 
             int i = 0;
@@ -3378,16 +2925,9 @@ namespace Miki
                             MyOutput.AddRange(Dig1List[i..]); break;
                         }
                         else
-                        //if (DigBigger == 2)
                         {
                             MyOutput.AddRange(Dig2List[i..]); break;
                         }
-                        /*
-                        if (DigBigger == 0)
-                        {
-                            break;
-                        }
-                        */
                     }
                     else
                     {
@@ -3399,7 +2939,7 @@ namespace Miki
                         {
                             temp = Dig2List[i] - debt;
                         }
-                        
+
                         if (temp < 0)
                         {
                             debt = 1;
@@ -3447,7 +2987,6 @@ namespace Miki
                 Dig2List = new(DigChangeTemp);
                 MaxLoops = Dig2ListCount;
                 MinLoops = Dig1ListCount;
-                //DigBigger = 1;
             }
 
             int i = 0;
@@ -3480,33 +3019,16 @@ namespace Miki
                 {
                     if (debt == 0)
                     {
-                        //if (DigBigger == 1)
                         {
                             MyOutput.AddRange(Dig1List[i..]); break;
                         }
-                        /*
-                        if (DigBigger == 2)
-                        {
-                            MyOutput.AddRange(Dig2List[i..]); break;
-                        }
-                        if (DigBigger == 0)
-                        {
-                            break;
-                        }
-                        */
                     }
                     else
                     {
-                        //if (DigBigger == 1)
                         {
                             temp = Dig1List[i] - debt;
                         }
-                        /*
-                        else
-                        {
-                            temp = Dig2List[i] - debt;
-                        }
-                        */
+
                         if (temp < 0)
                         {
                             debt = 1;
@@ -3686,78 +3208,13 @@ namespace Miki
 
         }
 
-        public static List<long> MulOld(List<long> Dig1List, List<long> Dig2List)
-        {
-            //list of 9
-            int Dig1ListCount = Dig1List.Count;
-            if (Dig1ListCount == 1)
-            {
-                if (Dig1List[0] == 1)
-                { return Dig2List; }
-                if (Dig1List[0] == 0)
-                { return Dig1List; }
-
-            }
-            int Dig2ListCount = Dig2List.Count;
-            if (Dig2ListCount == 1)
-            {
-                if (Dig2List[0] == 1)
-                { return Dig1List; }
-                if (Dig2List[0] == 0)
-                { return Dig2List; }
-            }
-
-            int MyPoss = 0;
-
-
-            long tempUp;
-            int Loop1Count = Dig1ListCount;
-            int Loop2Count = Dig2ListCount;
-
-            if (Dig1ListCount < Dig2ListCount)
-            {
-                List<long> DigChangeTemp = (Dig1List);
-                Dig1List = new(Dig2List);
-                Dig2List = new(DigChangeTemp);
-                Loop1Count = Dig2ListCount;
-                Loop2Count = Dig1ListCount;
-            }
-
-            int ResultCount = (Dig1ListCount + Dig2ListCount) - 1;
-            List<long> ResultList = new(new long[ResultCount]); // Product (ResultList) can be max Dig1List.Count + Dig2List.Count digit long or 1 less
-
-            for (int i = 0; i < Loop2Count; i++)
-            {
-                for (int k = 0; k < Loop1Count; k++)
-                {
-                    long temp = (Dig2List[i] * Dig1List[k]) + ResultList[MyPoss];
-                    if (temp >= 1000000000)
-                    {
-                        CalcIntExt.MyModuloLongToLong(temp, 1000000000, out tempUp, out temp);
-
-                        if (MyPoss + 1 == ResultCount)
-                        { ResultList.Add(tempUp); }
-                        else
-                        { ResultList[MyPoss + 1] += tempUp; }
-                    }
-
-                    ResultList[MyPoss] = temp;
-
-                    MyPoss += 1;
-                }
-
-                MyPoss = i + 1;
-            }
-            return ResultList;
-
-        }
+        
         public static List<List<long>> Div(List<long> Dig1List, List<long> Dig2List)
         {
             //Best with MySafeMultiplier, long digs, long multiplier
             List<List<long>> MyOutput = new(2);
             int Dig1ListCount = Dig1List.Count;
             int Dig2ListCount = Dig2List.Count;
-            //int Result = 0;
             if (Dig1ListCount < Dig2ListCount) // fast pass
             {
                 MyOutput.Add(new List<long>(1) { 0 });
@@ -3987,10 +3444,10 @@ namespace Miki
                 CalcIntExt.LongPower(10, in ZerosU, out long Result);
                 List<long> MultiplyBy10List = new(1) { Result };
 
-                List<long> TempDig2List9Temp = CalcLists.Mul(TempDig2List9, 9, MultiplyBy10List, 9, 9); 
+                List<long> TempDig2List9Temp = CalcLists.Mul(TempDig2List9, 9, MultiplyBy10List, 9, 9);
                 List<long> SafeMultiplierList9Temp = CalcLists.Mul(SafeMultiplierList9, 9, MultiplyBy10List, 9, 9);
 
-                
+
 
                 if (ZerosD > 0)
                 {
@@ -4008,10 +3465,8 @@ namespace Miki
                 }
                 else
                 {
-                    //TempDig2List9.AddRange(TempDig2List9Temp);
-                    //SafeMultiplierList9.AddRange(SafeMultiplierList9Temp);
-                    TempDig2List9=TempDig2List9Temp;
-                    SafeMultiplierList9=SafeMultiplierList9Temp;
+                    TempDig2List9 = TempDig2List9Temp;
+                    SafeMultiplierList9 = SafeMultiplierList9Temp;
 
                 }
             }
@@ -4040,7 +3495,7 @@ namespace Miki
 
             if (Dig2ListCount == 1 && Dig2List[0] == 1)
             {
-                MyOutputList =  Dig1List; IsResult = true; OutFrag = Dig1ListFrag;
+                MyOutputList = Dig1List; IsResult = true; OutFrag = Dig1ListFrag;
             }
 
             if (IsResult == false)
